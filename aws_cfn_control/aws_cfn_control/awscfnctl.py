@@ -777,6 +777,7 @@ class CfnControl:
         json_content = json.loads(object_content)
         if verbose:
             pass
+
         #    cfn_out_file.write('[Paramters]\n')
         #    for p in sorted(json_content['Parameters']):
 
