@@ -1,8 +1,5 @@
 #!/Users/duff/Envs/boto3-144/bin/python
 
-
-
-
 import os, sys, errno
 import time
 import boto3
