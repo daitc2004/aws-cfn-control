@@ -6,8 +6,7 @@ import sys
 import time
 import boto3
 import argparse
-sys.path.append('../')
-from modules.awscfnctl import CfnControl
+from aws_cfn_control import CfnControl
 
 progname = 'cfnctl'
 
