@@ -52,6 +52,7 @@ class CfnControl:
         self.cfn_config_base_dir = ".cfnctlconfig"
         self.cfn_config_file_dir = os.path.join(self.homedir, self.cfn_config_base_dir)
         self.TemplateUrl = 'NULL'
+        self.cfn_config_file_values = dict()
 
         self.key_pairs = list()
         key_pairs_response = self.client_ec2.describe_key_pairs()
@@ -82,6 +83,7 @@ class CfnControl:
                     # if not self.instances:
                     #    print("Instance list is null, creating stack?")
 
+    @staticmethod
     def runcmd(self, cmdlist):
 
         proc = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -90,17 +92,19 @@ class CfnControl:
             log = out + err
         else:
             log = out
-        return (log, proc.returncode)
+
+        return log, proc.returncode
 
     def instanace_list(self):
         # return list of instance IDs
         return self.instances
 
+    @staticmethod
     def inst_list_from_file(self, file_name):
         """
         reads a list from a named file
 
-        :param fn: a file name
+        :param file_name: a file name
         :return:  a list spearated but "\n"
         """
         try:
@@ -126,7 +130,7 @@ class CfnControl:
             stack_name = self.stack_name
 
         # Debug
-        ## print('Getting ASG name(s) from stack {0} (returns a list)'.format(stack_name))
+        # print('Getting ASG name(s) from stack {0} (returns a list)'.format(stack_name))
 
         try:
             stk_response = self.client_cfn.describe_stack_resources(StackName=stack_name)
@@ -312,6 +316,9 @@ class CfnControl:
 
         self.stop_instances()
 
+        response_ec2_vfi = None
+        response_ec2_ena = None
+
         for inst_id in self.instances:
             print('Enabling ENA/VFI on ' + inst_id)
             response_ec2_vfi = self.client_ec2.modify_instance_attribute(InstanceId=inst_id,
@@ -326,12 +333,18 @@ class CfnControl:
         if instances is None:
             self.instances = all_instances
 
-    def get_config_files(self, dir='NULL'):
+        return response_ec2_vfi, response_ec2_ena
+
+    def get_config_files(self, os_dir='NULL'):
+
+        self.config_file_list = list()
 
         try:
-            return os.listdir(dir)
+            self.config_file_list = os.listdir(os_dir)
+            return self.config_file_list
         except Exception as e:
             raise ValueError(e)
+
 
     def read_cfn_config_file(self, cfn_config_file='NULL'):
 
@@ -353,9 +366,6 @@ class CfnControl:
                 parser.read(os.path.join(self.cfn_config_file_dir, cfn_config_file))
 
         params = list()
-        template_url = 'Null'
-
-        self.cfn_config_file_values = dict()
 
         boolean_keys = ['EnableEnaVfi',
                         'AddNetInterfaces',
@@ -377,7 +387,7 @@ class CfnControl:
                 if key == 'TemplateUrl':
                     self.TemplateUrl = value
                     # Debug
-                    ## print('setting template_url {0}'.format(self.TemplateUrl))
+                    # print('setting template_url {0}'.format(self.TemplateUrl))
                 elif key in not_cfn_param_keys:
                     self.cfn_config_file_values[key] = value
                 else:
@@ -439,14 +449,14 @@ class CfnControl:
         try:
             if self.cfn_config_file_values['AddNetInterfaces']:
                 self.add_net_dev()
-        except:
+        except KeyError:
             pass
 
         stk_output = self.get_stack_output(stack_name)
 
         try:
             eip = stk_output['ElasticIP']
-        except:
+        except KeyError:
             raise
 
         self.set_elastic_ip(stack_eip=eip)
@@ -481,6 +491,7 @@ class CfnControl:
     def add_net_dev(self):
 
         print("Adding network interfaces")
+        attach_resp = None
 
         for i in self.instances:
 
@@ -506,6 +517,8 @@ class CfnControl:
 
             print(" {0} {1} {2}".format(instance.id, num_interfaces_b, num_interfaces))
             time.sleep(10)
+
+        return attach_resp
 
     def stack_status(self, stack_name=None):
 
@@ -560,10 +573,10 @@ class CfnControl:
                             NetworkInterfaceIds=[interface['NetworkInterfaceId']],
                             DryRun=False)
 
-                        for r in response['NetworkInterfaces']:
+                        for r_net in response['NetworkInterfaces']:
                             try:
-                                if (r['Association'].get('AllocationId')):
-                                    return r['Association'].get('PublicIp')
+                                if r_net['Association'].get('AllocationId'):
+                                    return r_net['Association'].get('PublicIp')
                             except KeyError:
                                 pass
 
@@ -704,7 +717,7 @@ class CfnControl:
         try:
             os.remove(cfn_config_file)
         except Exception as e:
-            print(e)
+            raise(e)
 
         sys.exit(1)
 
@@ -765,10 +778,10 @@ class CfnControl:
         print("Using config file {0}".format(cfn_config_file))
 
         (bucket, key) = self.get_bucket_and_key_from_url(template_url)
-        object = self.s3.Object(bucket, key)
-        object_content = 'NULL'
+        s3_object = self.s3.Object(bucket, key)
+        s3_object_content = 'NULL'
         try:
-            object_content = object.get()['Body'].read().decode('utf-8')
+            s3_object_content = s3_object.get()['Body'].read().decode('utf-8')
         except ClientError as e:
             if e.response['Error']['Code'] == 'AccessDenied':
                 errmsg = "\nAccess Denied: Are you using the correct CFN template and region for the CFN template?"
@@ -778,7 +791,7 @@ class CfnControl:
                 raise ValueError(e[0] + errmsg)
             raise ValueError(e)
 
-        json_content = json.loads(object_content)
+        json_content = json.loads(s3_object_content)
         if verbose:
             pass
 
@@ -830,7 +843,7 @@ class CfnControl:
                 cli_val = 'NULL'
 
                 # Debug
-                ##print('setting {0}'.format(p))
+                #print('setting {0}'.format(p))
 
                 # get and set AWS::EC2::KeyPair::KeyName
                 try:
@@ -947,7 +960,7 @@ class CfnControl:
             print('Some values are still needed, replace "<VALUE_NEEDED>" in {0}'.format(cfn_config_file))
 
         # Debug
-        ## print (sorted(cfn_config_file_to_write.items()))
+        # print (sorted(cfn_config_file_to_write.items()))
         with open(self.cfn_config_file, 'w') as cfn_out_file:
 
             cfn_out_file.write('[AWS-Config]\n')
@@ -1021,7 +1034,7 @@ class CfnControl:
             for vpc_key in self.vpc_keys_to_print:
                 try:
                     all_vpcs[v['VpcId']][vpc_key] = v[vpc_key]
-                except:
+                except KeyError:
                     pass
 
         return all_vpcs
