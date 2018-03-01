@@ -53,6 +53,9 @@ class CfnControl:
         self.cfn_config_file_dir = os.path.join(self.homedir, self.cfn_config_base_dir)
         self.TemplateUrl = 'NULL'
         self.cfn_config_file_values = dict()
+        self.config_file_list = list()
+        self.stack_name = None
+        self.cfn_config_file_basename = None
 
         self.key_pairs = list()
         key_pairs_response = self.client_ec2.describe_key_pairs()
@@ -84,7 +87,7 @@ class CfnControl:
                     #    print("Instance list is null, creating stack?")
 
     @staticmethod
-    def runcmd(self, cmdlist):
+    def runcmd(cmdlist):
 
         proc = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate()
@@ -100,7 +103,7 @@ class CfnControl:
         return self.instances
 
     @staticmethod
-    def inst_list_from_file(self, file_name):
+    def inst_list_from_file(file_name):
         """
         reads a list from a named file
 
@@ -337,14 +340,11 @@ class CfnControl:
 
     def get_config_files(self, os_dir='NULL'):
 
-        self.config_file_list = list()
-
         try:
             self.config_file_list = os.listdir(os_dir)
             return self.config_file_list
         except Exception as e:
             raise ValueError(e)
-
 
     def read_cfn_config_file(self, cfn_config_file='NULL'):
 
@@ -380,7 +380,7 @@ class CfnControl:
 
         for section_name in parser.sections():
             for key, value in parser.items(section_name):
-                ## print('key: {0}'.format(key))
+                # print('key: {0}'.format(key))
                 if key in boolean_keys:
                     value = parser.getboolean(section_name, key)
 
@@ -406,12 +406,11 @@ class CfnControl:
 
         cfn_params = self.read_cfn_config_file(cfn_config_file)
         self.cfn_config_file = cfn_config_file
-        self.stack_name = stack_name
 
         try:
             template_url = self.TemplateUrl
             # Debug
-            ##print('Using stack template {0}'.format(template_url))
+            # print('Using stack template {0}'.format(template_url))
             response = self.client_cfn.create_stack(
                 StackName=stack_name,
                 TemplateURL=template_url,
@@ -622,13 +621,12 @@ class CfnControl:
             print("Couldn't get first device")
             return
 
-        allocation = dict()
-
         try:
             if stack_eip is not None:
                 allocation_id = self.get_net_alloc_id(stack_eip)
                 ip_addr = stack_eip
             else:
+                allocation = dict()
                 allocation = self.client_ec2.allocate_address(Domain='vpc')
                 allocation_id = allocation['AllocationId']
                 ip_addr = allocation['PublicIp']
@@ -643,6 +641,8 @@ class CfnControl:
 
         except ClientError as e:
             print(e)
+
+        return response
 
     def get_stack_output(self, stack_name=None):
 
@@ -676,7 +676,8 @@ class CfnControl:
 
     def get_stack_info(self, stack_name=None, ):
 
-        if stack_name is None: stack_name = self.stack_name
+        if stack_name is None:
+            stack_name = self.stack_name
 
         response = self.client_cfn.describe_stacks(StackName=stack_name, )
 
@@ -692,7 +693,8 @@ class CfnControl:
             for o in i['Outputs']:
                 print('{0:<35} = {1:<30}'.format(o['OutputKey'], o['OutputValue']))
 
-    def get_bucket_and_key_from_url(self, url):
+    @staticmethod
+    def get_bucket_and_key_from_url(url):
 
         path = urlparse.urlparse(url).path
 
@@ -717,7 +719,7 @@ class CfnControl:
         try:
             os.remove(cfn_config_file)
         except Exception as e:
-            raise(e)
+            raise e
 
         sys.exit(1)
 
@@ -734,7 +736,7 @@ class CfnControl:
         for vpc_k, vpc_values in all_vpcs.items():
             vpc_ids.append(vpc_k)
 
-        ##print(vpc_ids)
+        #print(vpc_ids)
 
         for vpc_id, vpc_info in all_vpcs.items():
             try:
@@ -779,7 +781,6 @@ class CfnControl:
 
         (bucket, key) = self.get_bucket_and_key_from_url(template_url)
         s3_object = self.s3.Object(bucket, key)
-        s3_object_content = 'NULL'
         try:
             s3_object_content = s3_object.get()['Body'].read().decode('utf-8')
         except ClientError as e:
