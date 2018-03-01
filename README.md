@@ -1,14 +1,16 @@
 ## AWS CFN Control
 
-AWS-CFN-Control is an interface for managing and launching AWS CloudFormation stacks from the command line. The cfnctl command provides the core functionality, with several other commands that will find AMI info, get stack status, build CloudFormation mappings, and many other features. ~
+AWS-CFN-Control is an interface for managing and launching AWS CloudFormation stacks from the command line. The `cfnctl` command provides the core functionality, with several other commands that will find AMI info, get stack status, build CloudFormation mappings, and many other features.
 
 ## License
 
 This library is licensed under the Apache 2.0 License. 
 
 
+## Installation
+
 ```
-sudo pip install awscfnctl
+sudo pip install aws-cfn-control
 ```
 
 ## Launch stack using a cfnctl configuration file
