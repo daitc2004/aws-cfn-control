@@ -766,11 +766,14 @@ class CfnControl:
         (bucket, key) =  self.get_bucket_and_key_from_url(template_url)
         object = self.s3.Object(bucket, key)
         object_content = 'NULL'
-        errmsg = "\nAre you using the correct CFN template and region for the CFN template?"
         try:
             object_content = object.get()['Body'].read().decode('utf-8')
         except ClientError as e:
-            if "AccessDenied" in e[0]:
+            if e.response['Error']['Code'] == 'AccessDenied':
+                errmsg = "\nAccess Denied: Are you using the correct CFN template and region for the CFN template?"
+                raise ValueError(e[0] + errmsg)
+            elif e.response['Error']['Code'] == 'NoSuchKey':
+                errmsg = "\nCan't find {0} in bucket {1}".format(key, bucket)
                 raise ValueError(e[0] + errmsg)
             raise ValueError(e)
 
