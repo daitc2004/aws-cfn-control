@@ -1,10 +1,8 @@
-#!/Users/duff/Envs/boto3-144/bin/python
+#!/usr/bin/env python
 
 # Copyright
 
 import sys
-import time
-import boto3
 import argparse
 from aws_cfn_control import CfnControl
 

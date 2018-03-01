@@ -1,11 +1,12 @@
 #!/Users/duff/Envs/boto3-144/bin/python
 
-import os, sys, errno
+import os
+import sys
 import time
+import json
+import errno
 import boto3
-import datetime
 import operator
-import urllib, json
 import urlparse
 import subprocess
 from ConfigParser import SafeConfigParser
@@ -13,7 +14,6 @@ from botocore.exceptions import ClientError
 
 
 class CfnControl:
-
     def __init__(self, **kwords):
         self.region = kwords.get('region')
 
@@ -42,9 +42,11 @@ class CfnControl:
         self.client_asg = session.client('autoscaling', region_name=self.region)
         self.client_cfn = session.client('cloudformation', region_name=self.region)
 
-
+        # grab passed arguments
         self.asg = kwords.get('asg')
         self.cfn_config_file = kwords.get('config_file')
+
+        #
         self.instances = kwords.get('instances')
         self.homedir = os.path.expanduser("~")
         self.cfn_config_base_dir = ".cfnctlconfig"
@@ -56,18 +58,18 @@ class CfnControl:
         for pair in (key_pairs_response['KeyPairs']):
             self.key_pairs.append(pair['KeyName'])
 
-        self. vpc_keys_to_print = [ 'Tag_Name',
-                                    'IsDefault',
-                                    'CidrBlock',
+        self.vpc_keys_to_print = ['Tag_Name',
+                                  'IsDefault',
+                                  'CidrBlock',
                                   ]
 
-        self.subnet_keys_to_print = [ 'Tag_Name',
-                                      'AvailabilityZone',
-                                    ]
+        self.subnet_keys_to_print = ['Tag_Name',
+                                     'AvailabilityZone',
+                                     ]
 
-        self.sec_groups_keys_to_print = [ 'Description',
-                                          'GroupName',
-                                       ]
+        self.sec_groups_keys_to_print = ['Description',
+                                         'GroupName',
+                                         ]
 
         if self.asg:
             response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg])
@@ -77,8 +79,8 @@ class CfnControl:
                 for i in r['Instances']:
                     self.instances.append(self.ec2.Instance(i['InstanceId']).instance_id)
 
-        #if not self.instances:
-        #    print("Instance list is null, creating stack?")
+                    # if not self.instances:
+                    #    print("Instance list is null, creating stack?")
 
     def runcmd(self, cmdlist):
 
@@ -145,7 +147,7 @@ class CfnControl:
             asg = self.asg
 
         # Debug
-        ## print('Getting ASG instances from {0}'.format(asg))
+        # print('Getting ASG instances from {0}'.format(asg))
 
         response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=asg)
 
@@ -159,15 +161,15 @@ class CfnControl:
 
     def asg_enter_standby(self, instances=None):
 
-        sleep_time=10
+        sleep_time = 10
         print("Setting instances to ASG standby")
 
         if instances is None:
             instances = self.instances
 
         response = self.client_asg.enter_standby(InstanceIds=instances, AutoScalingGroupName=self.asg,
-            ShouldDecrementDesiredCapacity=True
-        )
+                                                 ShouldDecrementDesiredCapacity=True
+                                                 )
 
         print("Sleeping for {0} seconds to allow for instances to enter standby".format(sleep_time))
         time.sleep(sleep_time)
@@ -176,7 +178,7 @@ class CfnControl:
 
     def asg_exit_standby(self, instances=None):
 
-        sleep_time=30
+        sleep_time = 30
         print("Instances are exiting from ASG standby")
 
         if instances is None:
@@ -191,13 +193,13 @@ class CfnControl:
 
     def stop_instances(self, instances=None):
 
-        sleep_time=300
+        sleep_time = 300
         print("Stopping instances")
 
         if instances is None:
             instances = self.instances
 
-        response = self.client_ec2.stop_instances(InstanceIds=instances,DryRun=False)
+        response = self.client_ec2.stop_instances(InstanceIds=instances, DryRun=False)
         print("Sleeping for {0} seconds to allow for instances to stop".format(sleep_time))
         time.sleep(sleep_time)
 
@@ -205,13 +207,13 @@ class CfnControl:
 
     def start_instances(self, instances=None):
 
-        sleep_time=120
+        sleep_time = 120
         print("Starting instances")
 
         if instances is None:
             instances = self.instances
 
-        response = self.client_ec2.start_instances(InstanceIds=instances,DryRun=False)
+        response = self.client_ec2.start_instances(InstanceIds=instances, DryRun=False)
         print("Sleeping for {0} seconds to allow for instances to start".format(sleep_time))
         time.sleep(sleep_time)
 
@@ -219,18 +221,17 @@ class CfnControl:
 
     def terminate_instances(self, instances=None):
 
-        sleep_time=120
+        sleep_time = 120
         print("Terminating instances")
 
         if instances is None:
             instances = self.instances
 
-        response = self.client_ec2.terminate_instances(InstanceIds=instances,DryRun=False)
+        response = self.client_ec2.terminate_instances(InstanceIds=instances, DryRun=False)
         print("Sleeping for {0} seconds to allow for instances to terminate".format(sleep_time))
         time.sleep(sleep_time)
 
         return response
-
 
     def ck_inst_status(self):
 
@@ -282,19 +283,19 @@ class CfnControl:
 
         for inst_id in all_instances:
 
-           response_vfi = self.client_ec2.describe_instance_attribute(
-               Attribute='sriovNetSupport',
-               InstanceId=inst_id
-           )
+            response_vfi = self.client_ec2.describe_instance_attribute(
+                Attribute='sriovNetSupport',
+                InstanceId=inst_id
+            )
 
-           try:
-               if (response_vfi['SriovNetSupport']['Value']) == 'simple':
-                   pass
-           except KeyError:
-               if inst_id not in inst_add_ena_vfi:
-                   inst_add_ena_vfi.append(inst_id)
+            try:
+                if (response_vfi['SriovNetSupport']['Value']) == 'simple':
+                    pass
+            except KeyError:
+                if inst_id not in inst_add_ena_vfi:
+                    inst_add_ena_vfi.append(inst_id)
 
-           # Attribute='enaSupport' is not currently supported
+                    # Attribute='enaSupport' is not currently supported
 
         if not inst_add_ena_vfi:
             print("All instances are VFI enabled (Can't check for ENA)")
@@ -314,11 +315,11 @@ class CfnControl:
         for inst_id in self.instances:
             print('Enabling ENA/VFI on ' + inst_id)
             response_ec2_vfi = self.client_ec2.modify_instance_attribute(InstanceId=inst_id,
-                                                                    SriovNetSupport={'Value': 'simple'}
-                                                                    )
+                                                                         SriovNetSupport={'Value': 'simple'}
+                                                                         )
             response_ec2_ena = self.client_ec2.modify_instance_attribute(InstanceId=inst_id,
-                                                                     EnaSupport={'Value': True},
-                                                                     )
+                                                                         EnaSupport={'Value': True},
+                                                                         )
 
         self.start_instances()
         self.asg_exit_standby()
@@ -365,7 +366,7 @@ class CfnControl:
                               'AddNetInterfaces',
                               'TotalNetInterfaces',
                               'TemplateUrl'
-                             ]
+                              ]
 
         for section_name in parser.sections():
             for key, value in parser.items(section_name):
@@ -461,7 +462,7 @@ class CfnControl:
         :return: network device id
         """
 
-        response = self.client_ec2.create_network_interface(SubnetId=subnet_id_n,Description=desc,Groups=[sg])
+        response = self.client_ec2.create_network_interface(SubnetId=subnet_id_n, Description=desc, Groups=[sg])
 
         return response['NetworkInterface']['NetworkInterfaceId']
 
@@ -491,13 +492,12 @@ class CfnControl:
             num_int_count = 0
 
             while num_interfaces < int(self.cfn_config_file_values['TotalNetInterfaces']):
-
-                attach_resp = self.attach_new_dev( i,
-                                                   num_interfaces_b + num_int_count,
-                                                   self.cfn_config_file_values['Subnet'],
-                                                   self.stack_name + "-net_dev",
-                                                   self.cfn_config_file_values['SecurityGroups']
-                                                 )
+                attach_resp = self.attach_new_dev(i,
+                                                  num_interfaces_b + num_int_count,
+                                                  self.cfn_config_file_values['Subnet'],
+                                                  self.stack_name + "-net_dev",
+                                                  self.cfn_config_file_values['SecurityGroups']
+                                                  )
 
                 instance = self.ec2.Instance(i)
 
@@ -552,7 +552,7 @@ class CfnControl:
             self.instances = inst_arg
 
         for i in self.instances:
-            response = self.client_ec2.describe_instances(InstanceIds=[i],DryRun=False)
+            response = self.client_ec2.describe_instances(InstanceIds=[i], DryRun=False)
             for r in response['Reservations']:
                 for s in (r['Instances']):
                     for interface in s['NetworkInterfaces']:
@@ -573,7 +573,7 @@ class CfnControl:
             print("Must specify one instance")
             return
 
-        response = self.client_ec2.describe_instances(InstanceIds=[instance],DryRun=False)
+        response = self.client_ec2.describe_instances(InstanceIds=[instance], DryRun=False)
         for r in response['Reservations']:
             for s in (r['Instances']):
                 for interface in s['NetworkInterfaces']:
@@ -592,7 +592,7 @@ class CfnControl:
             print('Elastic IP already allocated: ' + has_eip)
             return has_eip
         else:
-            response = self.client_ec2.describe_instances(InstanceIds=instances,DryRun=False)
+            response = self.client_ec2.describe_instances(InstanceIds=instances, DryRun=False)
             for r in response['Reservations']:
                 for resp_i in (r['Instances']):
                     i = resp_i['InstanceId']
@@ -621,9 +621,9 @@ class CfnControl:
                 ip_addr = allocation['PublicIp']
 
             response = self.client_ec2.associate_address(
-                                     AllocationId=allocation_id,
-                                     NetworkInterfaceId=netdev0
-                                     )
+                AllocationId=allocation_id,
+                NetworkInterfaceId=netdev0
+            )
 
             print('{0} now has Elastic IP address {1}'.format(inst_to_alloc_eip, ip_addr))
             return ip_addr
@@ -661,11 +661,11 @@ class CfnControl:
         for r in response['Addresses']:
             return r['AllocationId']
 
-    def get_stack_info(self, stack_name=None,):
+    def get_stack_info(self, stack_name=None, ):
 
         if stack_name is None: stack_name = self.stack_name
 
-        response = self.client_cfn.describe_stacks(StackName=stack_name,)
+        response = self.client_cfn.describe_stacks(StackName=stack_name, )
 
         for i in response['Stacks']:
 
@@ -684,7 +684,7 @@ class CfnControl:
         path = urlparse.urlparse(url).path
 
         path_l = list()
-        path_l =  path.split('/')
+        path_l = path.split('/')
 
         bucket = path_l[1]
         key = ('/').join(path_l[2:])
@@ -725,7 +725,8 @@ class CfnControl:
 
         for vpc_id, vpc_info in all_vpcs.items():
             try:
-                print('  {0} | {1} | {2} | {3}'.format(vpc_id, vpc_info['CidrBlock'], vpc_info['IsDefault'], vpc_info['Tag_Name']))
+                print('  {0} | {1} | {2} | {3}'.format(vpc_id, vpc_info['CidrBlock'], vpc_info['IsDefault'],
+                                                       vpc_info['Tag_Name']))
             except:
                 print('  {0} | {1} | {2}'.format(vpc_id, vpc_info['CidrBlock'], vpc_info['IsDefault']))
 
@@ -763,7 +764,7 @@ class CfnControl:
 
         print("Using config file {0}".format(cfn_config_file))
 
-        (bucket, key) =  self.get_bucket_and_key_from_url(template_url)
+        (bucket, key) = self.get_bucket_and_key_from_url(template_url)
         object = self.s3.Object(bucket, key)
         object_content = 'NULL'
         try:
@@ -781,7 +782,7 @@ class CfnControl:
         if verbose:
             pass
 
-        #    cfn_out_file.write('[Paramters]\n')
+        # cfn_out_file.write('[Paramters]\n')
         #    for p in sorted(json_content['Parameters']):
 
         #        print(json_content['Parameters'][p]['Type'])
@@ -882,7 +883,8 @@ class CfnControl:
                         for subnet_id, subnet_info in all_subnets.items():
                             subnet_ids.append(subnet_id)
                             try:
-                                print('  {0} | {1} | {2}'.format(subnet_id, subnet_info['AvailabilityZone'], subnet_info['Tag_Name'][0:20]))
+                                print('  {0} | {1} | {2}'.format(subnet_id, subnet_info['AvailabilityZone'],
+                                                                 subnet_info['Tag_Name'][0:20]))
                             except KeyError:
                                 print('  {0} | {1}'.format(subnet_id, subnet_info['AvailabilityZone']))
                         cli_val = raw_input("Select subnet: ")
@@ -911,14 +913,14 @@ class CfnControl:
                 except Exception as e:
                     print(e)
 
-
                 try:
                     default_val = json_content['Parameters'][p]['Default']
                 except KeyError:
                     pass
 
                 try:
-                    if cli_val == 'NULL' and default_val == 'NULL' and json_content['Parameters'][p]['ConstraintDescription']:
+                    if cli_val == 'NULL' and default_val == 'NULL' and json_content['Parameters'][p][
+                        'ConstraintDescription']:
                         print('Parameter "{0}" is required, but can be changed in config file'.format(p))
                         cli_val = raw_input('Enter {0}: '.format(p))
                         if cli_val == "":
@@ -987,7 +989,7 @@ class CfnControl:
                 'Launch Time': i.launch_time
             }
 
-        return inst_info   # returns a dictionary
+        return inst_info  # returns a dictionary
 
     def get_vpcs(self):
 
@@ -1024,21 +1026,21 @@ class CfnControl:
 
         return all_vpcs
 
-    def get_subnets_from_vpc(self,vpc_to_get):
+    def get_subnets_from_vpc(self, vpc_to_get):
 
-        subnet_keys_all = [ 'Tag_Name',
-                            'VpcId',
-                            'Tags',
-                            'AvailableIpAddressCount',
-                            'MapPublicIpOnLaunch',
-                            'DefaultForAz',
-                            'Ipv6CidrBlockAssociationSet',
-                            'State',
-                            'AvailabilityZone',
-                            'SubnetId',
-                            'CidrBlock',
-                            'AssignIpv6AddressOnCreation'
-                            ]
+        subnet_keys_all = ['Tag_Name',
+                           'VpcId',
+                           'Tags',
+                           'AvailableIpAddressCount',
+                           'MapPublicIpOnLaunch',
+                           'DefaultForAz',
+                           'Ipv6CidrBlockAssociationSet',
+                           'State',
+                           'AvailabilityZone',
+                           'SubnetId',
+                           'CidrBlock',
+                           'AssignIpv6AddressOnCreation'
+                           ]
 
         response = self.client_ec2.describe_subnets(Filters=[{'Name': 'vpc-id', 'Values': [vpc_to_get]}])
 
@@ -1076,11 +1078,8 @@ class CfnControl:
 
         return response['SecurityGroups']
 
-
     def setup(self):
         pass
 
     def teardown(self):
         pass
-
-
