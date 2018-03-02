@@ -55,7 +55,7 @@ EOF
 function build_inst_vfi {
 
   pushd /tmp
-  curl -O  https://s3.amazonaws.com/duff-ena-vfi/ixgbevf-${vfi_version}.tar.gz
+  curl -O  https://s3.amazonaws.com/${bucket}/ixgbevf-${vfi_version}.tar.gz
   tar -xvf ixgbevf-${vfi_version}.tar.gz
   sudo mv ixgbevf-${vfi_version} /usr/src
 
