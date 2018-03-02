@@ -1,4 +1,4 @@
-#!/Users/duff/Envs/boto3-144/bin/python
+#!/usr/bin/env python
 
 # Copyright 2013-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
