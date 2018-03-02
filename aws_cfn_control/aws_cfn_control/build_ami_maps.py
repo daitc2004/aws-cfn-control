@@ -1,11 +1,22 @@
-#!/Users/duff/Envs/boto3-144/bin/python
+#!/usr/bin/env python
 
+#
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file
+# except in compliance with the License. A copy of the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is distributed on an "AS IS"
+# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under the License.
+#
 
-import argparse
-import os, sys
+import sys
 import json
 import boto3
-
+import argparse
 
 #aws ec2 describe-images --owners 309956199498  --region us-west-2 --filters Name=name,Values=RHEL-7.3_HVM_GA-20161026-x86_64-1-Hourly2-GP2
 
@@ -197,11 +208,14 @@ def main():
 
     return rc
 
-
 if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
         print '\nReceived Keyboard interrupt.'
         print 'Exiting...'
+    except ValueError as e:
+        print('ERROR: {0}'.format(e))
+
+
 

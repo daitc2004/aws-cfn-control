@@ -1,9 +1,21 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-import os,sys
-import boto3
-import argparse
+#
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file
+# except in compliance with the License. A copy of the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is distributed on an "AS IS"
+# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under the License.
+#
+
+import sys
 import time
+import boto3
 import operator
 
 '''
@@ -133,10 +145,14 @@ def main():
     if my_asg_short_name == "AutoScalingGroup01":
         set_inst_eip(ip_addr, my_instance_id, my_inst_file, instances, client_ec2)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        print 'Received Keyboard interrupt.'
+        print '\nReceived Keyboard interrupt.'
         print 'Exiting...'
+    except ValueError as e:
+        print('ERROR: {0}'.format(e))
+
+
 

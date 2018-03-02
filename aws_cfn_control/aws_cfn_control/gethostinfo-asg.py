@@ -12,7 +12,7 @@
 # limitations under the License.
 
 
-import os,sys
+import sys
 import boto3
 import argparse
 
@@ -62,9 +62,12 @@ def main():
                 print(ec2.Instance(i['InstanceId']).private_dns_name.replace('.ec2.internal', ''))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
         print '\nReceived Keyboard interrupt.'
         print 'Exiting...'
+    except ValueError as e:
+        print('ERROR: {0}'.format(e))
+

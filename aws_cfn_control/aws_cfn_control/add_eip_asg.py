@@ -1,11 +1,21 @@
-#!/Users/duff/Envs/boto3-144/bin/python
+#!/usr/bin/env python
+
+#
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file
+# except in compliance with the License. A copy of the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is distributed on an "AS IS"
+# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under the License.
+#
 
 import sys
-sys.path.append('/Users/duff/Duff_code')
-import time
-import boto3
 import argparse
-from modules.kumo import Kumo
+from aws_cfn_control import CfnControl
 
 
 def arg_parse():
@@ -27,12 +37,12 @@ def main():
     region = args.region
     stack_name = args.stack_name
 
-    kumo_c = Kumo(region=region)
+    client = CfnControl(region=region)
 
-    asg = kumo_c.get_asg_from_stack(stack_name)
-    instances = kumo_c.get_inst_from_asg(asg)
+    asg = client.get_asg_from_stack(stack_name)
+    instances = client.get_inst_from_asg(asg)
 
-    eip = kumo_c.set_elastic_ip(instances=instances)
+    eip = client.set_elastic_ip(instances=instances)
 
     return
 
@@ -44,7 +54,7 @@ if __name__ == "__main__":
         print '\nReceived Keyboard interrupt.'
         print 'Exiting...'
     except ValueError as e:
-        print(e)
+        print('ERROR: {0}'.format(e))
 
 
 

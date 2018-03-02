@@ -1,11 +1,8 @@
-#!/Users/duff/Envs/boto3-144/bin/python
+#!/usr/bin/env python
 
 import sys
-import time
-import boto3
 import argparse
-sys.path.append('/Users/duff/Duff_code')
-from modules.kumo import Kumo
+from aws_cfn_control import CfnControl
 
 progname = 'getinstinfo'
 
@@ -28,8 +25,8 @@ def main():
     args = arg_parse()
     region = args.region
 
-    kumo_c = Kumo(region=region)
-    for inst, info in kumo_c.get_instance_info().items():
+    client = CfnControl(region=region)
+    for inst, info in client.get_instance_info().items():
         print(inst)
         for k, v in info.items():
             print("  {0}:  {1}".format(k, v))
@@ -44,6 +41,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print '\nReceived Keyboard interrupt.'
         print 'Exiting...'
+    except ValueError as e:
+        print('ERROR: {0}'.format(e))
 
 
 
