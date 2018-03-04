@@ -23,6 +23,14 @@ import subprocess
 from ConfigParser import SafeConfigParser
 from botocore.exceptions import ClientError
 
+def prRed(prt): print("\033[91m {}\033[00m".format(prt))
+def prGreen(prt): print("\033[92m {}\033[00m".format(prt))
+def prYellow(prt): print("\033[93m {}\033[00m".format(prt))
+def prLightPurple(prt): print("\033[94m {}\033[00m".format(prt))
+def prPurple(prt): print("\033[95m {}\033[00m".format(prt))
+def prCyan(prt): print("\033[96m {}\033[00m".format(prt))
+def prLightGray(prt): print("\033[97m {}\033[00m".format(prt))
+def prBlack(prt): print("\033[98m {}\033[00m".format(prt))
 
 class CfnControl:
     def __init__(self, **kwords):
@@ -469,8 +477,9 @@ class CfnControl:
         except KeyError:
             raise
 
+        self.stack_name = stack_name
         self.set_elastic_ip(stack_eip=eip)
-        self.get_stack_info()
+        self.get_stack_info(stack_name=stack_name)
 
         print("")
 
@@ -685,7 +694,7 @@ class CfnControl:
         for r in response['Addresses']:
             return r['AllocationId']
 
-    def get_stack_info(self, stack_name=None, ):
+    def get_stack_info(self, stack_name=None):
 
         if stack_name is None:
             stack_name = self.stack_name
@@ -988,18 +997,35 @@ class CfnControl:
 
         return
 
-    def get_instance_info(self, instance_state='running'):
+    def get_instance_info(self, instance_state=None):
 
         # returns a dictionary
 
-        #  Instnace state can be:  pending | running | shutting-down | terminated | stopping | stopped
+        #  Instance state can be:  pending | running | shutting-down | terminated | stopping | stopped
 
-        running_instances = self.ec2.instances.filter(Filters=[{
-            'Name': 'instance-state-name',
-            'Values': ['running']}])
+        instance_states = ['pending',
+                           'running',
+                           'shutting-down',
+                           'terminated',
+                           'stopping',
+                           'stopped'
+                           ]
+
+        if instance_state is not None and instance_state not in instance_states:
+            errmsg = 'Instance state "{0}" not valid. ' \
+                     'Choose "pending | running | shutting-down | terminated | stopping | stopped"'.format(instance_state)
+            raise ValueError(errmsg)
+
+        if instance_state is None:
+            instances = self.ec2.instances.all()
+        else:
+            instances = self.ec2.instances.filter(Filters=[{
+                'Name': 'instance-state-name',
+                'Values': [instance_state]}]
+            )
 
         inst_info = dict()
-        for i in running_instances:
+        for i in instances:
             tag_name = 'NULL'
             for tag in i.tags:
                 if tag['Key'] == 'Name':
@@ -1019,7 +1045,6 @@ class CfnControl:
     def get_vpcs(self):
 
         response = self.client_ec2.describe_vpcs()
-        vpc_name = dict()
 
         vpc_keys_all = [
             'Tag_Name',
