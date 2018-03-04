@@ -1,4 +1,6 @@
-#!/bin/bash -x
+#!/usr/bin/env bash
+
+set -x
 
 #
 # Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
