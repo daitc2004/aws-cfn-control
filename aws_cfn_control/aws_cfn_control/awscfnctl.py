@@ -22,23 +22,11 @@ import urlparse
 import subprocess
 from ConfigParser import SafeConfigParser
 from botocore.exceptions import ClientError
+from botocore.exceptions import EndpointConnectionError
 
-def prRed(prt): print("\033[91m {}\033[00m".format(prt))
-def prGreen(prt): print("\033[92m {}\033[00m".format(prt))
-def prYellow(prt): print("\033[93m {}\033[00m".format(prt))
-def prLightPurple(prt): print("\033[94m {}\033[00m".format(prt))
-def prPurple(prt): print("\033[95m {}\033[00m".format(prt))
-def prCyan(prt): print("\033[96m {}\033[00m".format(prt))
-def prLightGray(prt): print("\033[97m {}\033[00m".format(prt))
-def prBlack(prt): print("\033[98m {}\033[00m".format(prt))
 
 class CfnControl:
     def __init__(self, **kwords):
-        self.region = kwords.get('region')
-
-        if not self.region:
-            print("Must specify region")
-            return
 
         self.aws_profile = kwords.get('aws_profile')
         if not self.aws_profile:
@@ -48,9 +36,17 @@ class CfnControl:
 
         print('Using AWS credentials profile "{0}"'.format(self.aws_profile))
 
-        self.instances = list()
-
         session = boto3.session.Session(profile_name=self.aws_profile)
+        self.region = kwords.get('region')
+
+        if not self.region and not session.region_name:
+            errmsg = "Must specify a region, either at the command (-r) or in your AWS CLI config"
+            raise ValueError(errmsg)
+
+        if not self.region:
+            self.region = session.region_name
+
+        print("Lools like we're in {0}".format(self.region))
 
         # boto resources
         self.s3 = session.resource('s3')
@@ -61,11 +57,13 @@ class CfnControl:
         self.client_asg = session.client('autoscaling', region_name=self.region)
         self.client_cfn = session.client('cloudformation', region_name=self.region)
 
+
         # grab passed arguments
         self.asg = kwords.get('asg')
         self.cfn_config_file = kwords.get('config_file')
 
         #
+        self.instances = list()
         self.instances = kwords.get('instances')
         self.homedir = os.path.expanduser("~")
         self.cfn_config_base_dir = ".cfnctlconfig"
@@ -76,8 +74,15 @@ class CfnControl:
         self.stack_name = None
         self.cfn_config_file_basename = None
 
+        # first API call
         self.key_pairs = list()
-        key_pairs_response = self.client_ec2.describe_key_pairs()
+        try:
+            key_pairs_response = self.client_ec2.describe_key_pairs()
+        except EndpointConnectionError as e:
+            errmsg = "Please make sure that the region specified ({0}) is valid\n".format(self.region)
+            raise ValueError(errmsg + str(e))
+        except Exception as e:
+            raise ValueError(e)
         for pair in (key_pairs_response['KeyPairs']):
             self.key_pairs.append(pair['KeyName'])
 
@@ -481,9 +486,44 @@ class CfnControl:
         self.set_elastic_ip(stack_eip=eip)
         self.get_stack_info(stack_name=stack_name)
 
-        print("")
-
         return response
+
+    def ls_stacks(self, stack_name=None, show_deleted=False):
+
+        response = None
+
+        if stack_name is None:
+            response = self.client_cfn.list_stacks()
+        else:
+            pass
+            #list one stack
+
+        show_stack = False
+        for r in response['StackSummaries']:
+
+            if show_deleted and r['StackStatus'] == "DELETE_COMPLETE":
+                show_stack = True
+            elif r['StackStatus'] == "DELETE_COMPLETE":
+                show_stack = False
+            else:
+                show_stack = True
+
+            if show_stack:
+                try:
+                    print('{0:<32.30} {1:<21.19} {2:<30.28} {3:<.30}'.format(r['StackName'],
+                                                   str(r['CreationTime']),
+                                                   r['StackStatus'],
+                                                   r['TemplateDescription'],
+                                                   )
+                          )
+                except Exception as e:
+                    print('{0:<32.30} {1:<21.19} {2:30.28}'.format(r['StackName'],
+                                               str(r['CreationTime']),
+                                               r['StackStatus'],
+                                               )
+                          )
+
+        return
 
     def create_net_dev(self, subnet_id_n, desc, sg):
         """
@@ -712,6 +752,9 @@ class CfnControl:
             print('[Outputs]')
             for o in i['Outputs']:
                 print('{0:<35} = {1:<30}'.format(o['OutputKey'], o['OutputValue']))
+
+        print("")
+        return
 
     @staticmethod
     def get_bucket_and_key_from_url(url):
