@@ -57,22 +57,25 @@ class CfnControl:
         self.client_asg = session.client('autoscaling', region_name=self.region)
         self.client_cfn = session.client('cloudformation', region_name=self.region)
 
-
         # grab passed arguments
         self.asg = kwords.get('asg')
         self.cfn_config_file = kwords.get('config_file')
 
-        #
+        # get instances passed as an argument
         self.instances = list()
         self.instances = kwords.get('instances')
+
+        # stack information
+        self.stack_name = None
+        self.TemplateUrl = 'NULL'
+
+        # cfnctl configuration file
+        self.config_file_list = list()
+        self.cfn_config_file_values = dict()
+        self.cfn_config_file_basename = None
         self.homedir = os.path.expanduser("~")
         self.cfn_config_base_dir = ".cfnctlconfig"
         self.cfn_config_file_dir = os.path.join(self.homedir, self.cfn_config_base_dir)
-        self.TemplateUrl = 'NULL'
-        self.cfn_config_file_values = dict()
-        self.config_file_list = list()
-        self.stack_name = None
-        self.cfn_config_file_basename = None
 
         # first API call
         self.key_pairs = list()
@@ -362,7 +365,10 @@ class CfnControl:
 
         return response_ec2_vfi, response_ec2_ena
 
-    def get_config_files(self, os_dir='NULL'):
+    def get_config_files(self, os_dir=None):
+
+        if os_dir is None:
+            os_dir = self.cfn_config_file_dir
 
         try:
             self.config_file_list = os.listdir(os_dir)
