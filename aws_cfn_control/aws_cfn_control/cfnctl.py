@@ -31,13 +31,13 @@ def arg_parse():
     opt_group.add_argument('-c', dest='create_stack', required=False, help="Create a stack", action='store_true')
     opt_group.add_argument('-t', dest='template_url', required=False, help='Build config file from template URL')
     opt_group.add_argument('-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
-    opt_group.add_argument('-l', dest='list_configs', required=False, help='list config files', action='store_true')
-    opt_group.add_argument('-v', dest='verbose_config_file', required=False, help='Verbose config file', action='store_true')
+    opt_group.add_argument('-l', dest='list_configs', required=False, help='List config files', action='store_true')
+    opt_group.add_argument('-a', dest='list_stacks', required=False, help='List stacks', action='store_true')
+    #opt_group.add_argument('-v', dest='verbose_config_file', required=False, help='Verbose config file', action='store_true')
 
-    req_group = parser.add_argument_group('required arguments')
-    #req_group.add_argument('-s', dest='stack_name', required=True)
-    #req_group.add_argument('-r', dest='region', required=True)
-    #req_group.add_argument('-c', dest='config_file', required=True)
+    if len(sys.argv[1:])==0:
+        parser.print_help()
+        parser.exit()
 
     return parser.parse_args()
 
@@ -53,8 +53,9 @@ def main():
     stack_name = args.stack_name
     template = args.template_url
     config_file = args.config_file
+    list_stacks = args.list_stacks
     list_configs = args.list_configs
-    verbose_config_file = args.verbose_config_file
+    ##verbose_config_file = args.verbose_config_file
 
     errmsg_cr = "Creating a stack requires create flag (-c), and both the stack name (-n) and the config file (-f)"
 
@@ -69,7 +70,7 @@ def main():
     client = CfnControl(region=region,aws_profile=aws_profile)
 
     if list_configs:
-        print('Local cfnctl config files: \n')
+        print('Local cfnctl config files in dir {0}: \n'.format(client.cfn_config_file_dir))
         try:
             response = client.get_config_files()
             for r in response:
@@ -77,13 +78,19 @@ def main():
             print('\n')
         except Exception as e:
             raise ValueError(e)
+    elif list_stacks:
+        print("Gathering info on CFN stacks...")
+        stacks = client.ls_stacks(show_deleted=False)
+        for stack, i in sorted(stacks.items()):
+            print('{0:<32.30} {1:<21.19} {2:<30.28} {3:<.30}'.format(stack, str(i[0]), i[1], i[2]))
     elif template and config_file:
         errmsg = 'Specify either the CFN template location, or ' \
                  'the local config file to use, find with {0} -l'.format(progname)
         raise ValueError(errmsg)
     elif template:
         try:
-            response = client.build_cfn_config(args.template_url, verbose=verbose_config_file)
+            #response = client.build_cfn_config(args.template_url, verbose=verbose_config_file)
+            response = client.build_cfn_config(args.template_url, verbose=None)
             return
         except Exception as e:
             raise ValueError(e)
@@ -101,12 +108,8 @@ def main():
     elif config_file or stack_name:
         raise ValueError(errmsg_cr)
     else:
-        try:
-            print("Gathering info on CFN stacks...")
-            response = client.ls_stacks(show_deleted=False)
-            return
-        except Exception as e:
-            raise ValueError(e)
+        print("No actions requested")
+        return 0
 
 
 if __name__ == "__main__":

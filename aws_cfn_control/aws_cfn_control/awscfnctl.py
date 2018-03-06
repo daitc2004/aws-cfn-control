@@ -504,6 +504,7 @@ class CfnControl:
             pass
             #list one stack
 
+        stacks = dict()
         show_stack = False
         for r in response['StackSummaries']:
 
@@ -516,20 +517,17 @@ class CfnControl:
 
             if show_stack:
                 try:
-                    print('{0:<32.30} {1:<21.19} {2:<30.28} {3:<.30}'.format(r['StackName'],
-                                                   str(r['CreationTime']),
-                                                   r['StackStatus'],
-                                                   r['TemplateDescription'],
-                                                   )
-                          )
-                except Exception as e:
-                    print('{0:<32.30} {1:<21.19} {2:30.28}'.format(r['StackName'],
-                                               str(r['CreationTime']),
-                                               r['StackStatus'],
-                                               )
-                          )
+                    stacks[r['StackName']] = [str(r['CreationTime']), r['StackStatus'], r['TemplateDescription']]
 
-        return
+                except Exception as e:
+                    stacks[r['StackName']] = [str(r['CreationTime']), r['StackStatus'], "No Description"]
+                    #print('{0:<32.30} {1:<21.19} {2:30.28}'.format(r['StackName'],
+                    #                           str(r['CreationTime']),
+                    #                           r['StackStatus'],
+                    #                           )
+                    #      )
+
+        return stacks
 
     def create_net_dev(self, subnet_id_n, desc, sg):
         """
