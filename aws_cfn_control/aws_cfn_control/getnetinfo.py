@@ -45,11 +45,18 @@ def get_sec_groups(client, vpc):
 
     all_security_group_info = client.get_security_groups(vpc=vpc)
 
+    output_count = 0
     security_groups = list()
     for r in all_security_group_info:
-        security_groups.append(r['GroupId'] + " (" + r['GroupName'][0:20] + ")")
+        seg_group_with_name = '{0} ({1:.20})'.format(r['GroupId'], r['GroupName'])
+        output_count += 1
+        if output_count == 3:
+            security_groups.append('{0:38.36}\n{1}'.format(seg_group_with_name, " "*19))
+            output_count = 0
+        else:
+            security_groups.append('{0:38.36}'.format(seg_group_with_name))
 
-    return ' | '.join(security_groups)
+    return ' '.join(security_groups)
 
 
 def main():
@@ -70,15 +77,16 @@ def main():
     all_vpcs = client.get_vpcs()
 
     for vpc_id, vpc_info in all_vpcs.items():
-        print('{0}'.format(vpc_id))
+        lines = '-'*20
+        print('{0}\n{1}\n{2}'.format(lines, vpc_id, lines))
         print('   Subnets: {0}'.format(get_subnets(client,vpc_id)))
-        print('   Security Groups: {0}'.format(get_sec_groups(client,vpc_id)))
         for vpc_k in vpc_keys_to_print:
             try:
                 print('   {0} = {1}'.format(vpc_k, vpc_info[vpc_k]))
             except KeyError:
                 pass
-
+        print('   Security Groups: {0}'.format(get_sec_groups(client,vpc_id)))
+        print("")
 
     return rc
 
