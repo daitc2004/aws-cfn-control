@@ -17,9 +17,6 @@ import sys
 import boto3
 import argparse
 
-# AWS CLI command
-#aws ec2 describe-images --owners 309956199498  --region us-west-2 --filters Name=name,Values=RHEL-7.3_HVM_GA-20161026-x86_64-1-Hourly2-GP2
-
 
 _PROPS = [
     'ImageId',
@@ -39,12 +36,9 @@ _PROPS = [
 
 def arg_parse():
     parser = argparse.ArgumentParser(prog='get_ami_id')
-    parser.add_argument('-i',
-                        dest='ami_id',
-                        type=str,
-                        help='AMI ID for us-east-1',
-                        required=True
-                        )
+
+    req_group = parser.add_argument_group('required arguments')
+    req_group.add_argument('-i', dest='ami_id', type=str, help='AMI ID for us-east-1', required=True )
 
     return parser.parse_args()
 

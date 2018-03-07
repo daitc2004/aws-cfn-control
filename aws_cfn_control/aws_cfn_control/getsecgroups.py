@@ -16,7 +16,7 @@
 import sys
 from aws_cfn_control import CfnControl
 
-progname = 'getsubnets'
+progname = 'getsecgroups'
 
 def main():
 

@@ -16,7 +16,7 @@ import sys
 import boto3
 import argparse
 
-progname = 'gethostinfo-asg'
+progname = 'get_priv_dns_asg'
 
 def arg_parse():
 

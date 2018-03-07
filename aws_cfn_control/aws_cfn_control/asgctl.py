@@ -25,14 +25,15 @@ def arg_parse():
                                      description='Control the instances in an ASG',
                                      epilog='Example:  {} <action> -a <asg_name> -r <region>'.format(progname)
                                      )
-    req_group = parser.add_argument_group('required arguments')
 
-    # required arguments
+    opt_group = parser.add_argument_group()
+    opt_group.add_argument('-r', dest='region', required=False, help="Region name")
+
+    req_group = parser.add_argument_group('required arguments')
     req_group.add_argument('action', help='Action to take: '
                                           'status, enter-stby, exit-stby, stop, start (stop will enter standby first, '
                                           'and start will exit standby after start is complete')
     req_group.add_argument('-a', dest='asg', required="True")
-    req_group.add_argument('-r', dest='region', required="True")
 
     return parser.parse_args()
 
