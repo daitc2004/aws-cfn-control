@@ -29,7 +29,12 @@ def main():
         sys.exit(0)
 
     client = CfnControl(region=region)
-    client.get_security_groups()
+    all_security_group_info = client.get_security_groups(vpc='vpc-6c6ea315')
+
+    security_group_ids = list()
+    for r in all_security_group_info:
+        security_group_ids.append(r['GroupId'])
+        print('  {0} ({1})'.format(r['GroupId'], r['GroupName'][0:20]))
 
     return rc
 
