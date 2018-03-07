@@ -77,7 +77,7 @@ def main():
     all_vpcs = client.get_vpcs()
 
     for vpc_id, vpc_info in all_vpcs.items():
-        lines = '-'*20
+        lines = '=' * len(vpc_id)
         print('{0}\n{1}\n{2}'.format(lines, vpc_id, lines))
         print('   Subnets: {0}'.format(get_subnets(client,vpc_id)))
         for vpc_k in vpc_keys_to_print:
