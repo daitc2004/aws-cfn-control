@@ -24,12 +24,13 @@ def arg_parse():
 
     parser = argparse.ArgumentParser(prog=progname, description='Launch a stack, with a config file')
 
+    opt_group = parser.add_argument_group()
+    opt_group.add_argument('-r', dest='region', required=False, help="Region name")
+
     req_group = parser.add_argument_group('required arguments')
     req_group.add_argument('-s', dest='stack_name', required=True)
-    req_group.add_argument('-r', dest='region', required=True)
 
     return parser.parse_args()
-
 
 
 def get_asg_from_stack(stack_name, client):
@@ -60,7 +61,8 @@ def main():
 
     asg = get_asg_from_stack(stack, cfn_client)
 
-    print(asg)
+    for a in asg:
+        print(' {}'.format(a))
 
     return rc
 

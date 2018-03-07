@@ -14,21 +14,44 @@
 #
 
 import sys
+import argparse
 from aws_cfn_control import CfnControl
 
-progname = 'getvpcs'
+progname = 'getnetinfo'
+
+
+def arg_parse():
+
+    parser = argparse.ArgumentParser(prog=progname, description='Launch a stack, with a config file')
+
+    opt_group = parser.add_argument_group()
+    opt_group.add_argument('-r', dest='region', required=False, help="Region name")
+
+    return parser.parse_args()
+
+
+def get_subnets(client, vpc):
+
+    all_subnets = client.get_subnets_from_vpc(vpc)
+
+    subnet_ids = list()
+    for subnet_id, subnet_info in all_subnets.items():
+        subnet_ids.append(subnet_id)
+
+    return ' | '.join(subnet_ids)
+
+
+
+
 
 def main():
 
     rc = 0
 
-    try:
-        region = sys.argv[1]
-    except:
-        print('Must give region name, e.g. {0} us-east-1'.format(progname))
-        sys.exit(0)
+    args = arg_parse()
+    region = args.region
 
-    kumo_c = Kumo(region=region)
+    client = CfnControl(region=region)
 
     vpc_keys_to_print = [
         'Tag_Name',
@@ -36,15 +59,17 @@ def main():
         'CidrBlock',
     ]
 
-    all_vpcs = kumo_c.get_vpcs()
+    all_vpcs = client.get_vpcs()
 
     for vpc_id, vpc_info in all_vpcs.items():
         print('{0}'.format(vpc_id))
+        print('   Subnets: {0}'.format(get_subnets(client,vpc_id)))
         for vpc_k in vpc_keys_to_print:
             try:
-                print('  {0} = {1}'.format(vpc_k, vpc_info[vpc_k]))
+                print('   {0} = {1}'.format(vpc_k, vpc_info[vpc_k]))
             except KeyError:
                 pass
+
 
     return rc
 

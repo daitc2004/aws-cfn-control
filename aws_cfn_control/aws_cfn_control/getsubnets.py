@@ -31,7 +31,13 @@ def main():
         sys.exit(0)
 
     client = CfnControl(region=region)
-    client.get_subnets_from_vpc(vpc_to_get)
+    all_subnets = client.get_subnets_from_vpc(vpc_to_get)
+
+    subnet_ids = list()
+    for subnet_id, subnet_info in all_subnets.items():
+        subnet_ids.append(subnet_id)
+
+    print(' | '.join(subnet_ids))
 
     return rc
 

@@ -63,7 +63,11 @@ class CfnControl:
 
         # get instances passed as an argument
         self.instances = list()
-        self.instances = kwords.get('instances')
+        try:
+            if  kwords.get('instances'):
+                self.instances = kwords.get('instances')
+        except Exception as e:
+            raise ValueError(e)
 
         # stack information
         self.stack_name = None
@@ -104,6 +108,8 @@ class CfnControl:
 
         if self.asg:
             response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg])
+
+            print('Checking ASG {0}'.format(self.asg))
 
             # Build instance IDs list
             for r in response['AutoScalingGroups']:
@@ -521,11 +527,6 @@ class CfnControl:
 
                 except Exception as e:
                     stacks[r['StackName']] = [str(r['CreationTime']), r['StackStatus'], "No Description"]
-                    #print('{0:<32.30} {1:<21.19} {2:30.28}'.format(r['StackName'],
-                    #                           str(r['CreationTime']),
-                    #                           r['StackStatus'],
-                    #                           )
-                    #      )
 
         return stacks
 
