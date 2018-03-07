@@ -24,10 +24,10 @@ def arg_parse():
     parser = argparse.ArgumentParser(prog=progname, description='Get information for a stack')
 
     opt_group = parser.add_argument_group()
+    opt_group.add_argument('-r', dest='region', required=False)
 
     req_group = parser.add_argument_group('required arguments')
     req_group.add_argument('-s', dest='stack_name', required=True)
-    req_group.add_argument('-r', dest='region', required=True)
 
     return parser.parse_args()
 
