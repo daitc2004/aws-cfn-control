@@ -21,11 +21,12 @@ progname = 'cfnctl'
 
 def arg_parse():
 
-    parser = argparse.ArgumentParser(prog=progname, description='Launch a stack, with a config file')
+    parser = argparse.ArgumentParser(prog=progname,
+                                     description='Launch and manage CloudFormation templates from the command line')
 
     opt_group = parser.add_argument_group()
     opt_group.add_argument('-r', dest='region', required=False, help="Region name")
-    opt_group.add_argument('-n', dest='stack_name', required=False, help="Stack name")
+    opt_group.add_argument('-s', dest='stack_name', required=False, help="Stack name")
     opt_group.add_argument('-p', dest='aws_profile', required=False, help='AWS Profile')
     opt_group.add_argument('-f', dest='config_file', required=False, help="cfnctl config file, list with (-l)")
     opt_group.add_argument('-c', dest='create_stack', required=False, help="Create a stack", action='store_true')
