@@ -11,6 +11,7 @@
 # License for the specific language governing permissions and limitations under the License.
 #
 
+
 import os
 import sys
 import time
@@ -26,7 +27,32 @@ from botocore.exceptions import EndpointConnectionError
 
 
 class CfnControl:
+
     def __init__(self, **kwords):
+
+        """
+        Main class init
+
+        :param kwords: aws_profile, region, asg, config_file, instances
+
+            aws_profile:
+            If this is not given, then search the session, otherwise use "default"
+
+            region:
+            If this is not given, then search the session, if it's not in the session
+             the raise error.
+
+            asg:
+            If an ASG name is given, append the instances from the ASG to the instance list
+
+            config_file:
+            Location of the the configuration file for cfnctl command (~/.cfnctlconfig)
+
+            instances:
+            list() of instances
+
+
+        """
 
         self.aws_profile = kwords.get('aws_profile')
         if not self.aws_profile:
@@ -64,7 +90,7 @@ class CfnControl:
         # get instances passed as an argument
         self.instances = list()
         try:
-            if  kwords.get('instances'):
+            if kwords.get('instances'):
                 self.instances = kwords.get('instances')
         except Exception as e:
             raise ValueError(e)
@@ -109,18 +135,24 @@ class CfnControl:
         if self.asg:
             response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg])
 
-            print('Checking ASG {0}'.format(self.asg))
+            print('Gathering instances from ASG {0}'.format(self.asg))
 
             # Build instance IDs list
             for r in response['AutoScalingGroups']:
                 for i in r['Instances']:
                     self.instances.append(self.ec2.Instance(i['InstanceId']).instance_id)
 
-                    # if not self.instances:
-                    #    print("Instance list is null, creating stack?")
+            if not self.instances:
+                print("Instance list is null, continuing...")
 
     @staticmethod
     def runcmd(cmdlist):
+        """
+        runs a command
+
+        :param cmdlist:  command to run
+        :return:  If there is an error, returns stdout and stderr, otherwise just stdout
+        """
 
         proc = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate()
@@ -132,7 +164,9 @@ class CfnControl:
         return log, proc.returncode
 
     def instanace_list(self):
-        # return list of instance IDs
+        """
+        returns list() of instance IDs
+        """
         return self.instances
 
     @staticmethod
@@ -382,24 +416,30 @@ class CfnControl:
         except Exception as e:
             raise ValueError(e)
 
-    def read_cfn_config_file(self, cfn_config_file='NULL'):
+    def read_cfn_config_file(self, cfn_config_file=None):
 
         parser = SafeConfigParser()
         parser.optionxform = str
 
-        if cfn_config_file == 'NULL':
-            parser.read(self.cfn_config_file)
+        if not cfn_config_file:
+            cfn_config_file = self.cfn_config_file
+
+        if os.path.isfile(cfn_config_file):
+            print("Using config file: {0}".format(cfn_config_file))
+            parser.read(cfn_config_file)
+        elif os.path.isfile(os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf")):
+            print("Using config file: {0}".format(
+                os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf"))
+            )
+            parser.read(os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf"))
+        elif os.path.isfile(os.path.join(self.cfn_config_file_dir, cfn_config_file)):
+            print("Using config file: {0}".format(
+                os.path.join(self.cfn_config_file_dir, cfn_config_file))
+            )
+            parser.read(os.path.join(self.cfn_config_file_dir, cfn_config_file))
         else:
-            if os.path.isfile(os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf")):
-                print("Using config file: {0}".format(
-                    os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf"))
-                )
-                parser.read(os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf"))
-            elif os.path.isfile(os.path.join(self.cfn_config_file_dir, cfn_config_file)):
-                print("Using config file: {0}".format(
-                    os.path.join(self.cfn_config_file_dir, cfn_config_file))
-                )
-                parser.read(os.path.join(self.cfn_config_file_dir, cfn_config_file))
+            errmsg = "Config file {0} not found".format(cfn_config_file)
+            raise ValueError(errmsg)
 
         params = list()
 

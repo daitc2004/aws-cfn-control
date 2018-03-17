@@ -45,8 +45,8 @@ from awacs.sts import AssumeRole
 
 from troposphere.policies import CreationPolicy, ResourceSignal
 
-from cfn_include.cfn_mappings import AddAMIMap, AddEBSOptMap, AddOSInfoMap
-from cfn_include.setup_env_file import env_file
+from _include.cfn_mappings import AddAMIMap, AddEBSOptMap, AddOSInfoMap
+from _include.setup_env_file import env_file
 
 def main():
     t = Template()
@@ -196,11 +196,12 @@ def main():
             "c4.4xlarge",
             "c4.8xlarge",
             "c5.18xlarge",
-            "c5.18xlarge",
             "i3.8xlarge",
             "i3.16xlarge",
             "m4.10xlarge",
             "m4.16xlarge",
+            "m5.12xlarge",
+            "m5.24xlarge",
             "r3.4xlarge",
             "r3.8xlarge",
             "r4.4xlarge",
@@ -221,10 +222,13 @@ def main():
             "c3.8xlarge",
             "c4.4xlarge",
             "c4.8xlarge",
+            "c5.18xlarge",
             "i3.8xlarge",
             "i3.16xlarge",
             "m4.10xlarge",
             "m4.16xlarge",
+            "m5.12xlarge",
+            "m5.24xlarge",
             "r3.4xlarge",
             "r3.8xlarge",
             "r4.4xlarge",
