@@ -26,10 +26,10 @@ def arg_parse():
                                      description='Launch and manage CloudFormation templates from the command line')
 
     opt_group = parser.add_argument_group()
-    opt_group.add_argument('-a', dest='ls_all_stack_info', required=False, help='List all stack info', action='store_true')
+    opt_group.add_argument('-a', dest='ls_all_stack_info', required=False, help='List more info on all stacks', action='store_true')
     opt_group.add_argument('-b', dest='bucket', required=False, help='Bucket to upload template to')
     opt_group.add_argument('-c', dest='create_stack', required=False, help="Create a stack", action='store_true')
-    opt_group.add_argument('-f', dest='config_file', required=False, help="cfnctl config file, list with (-l)")
+    opt_group.add_argument('-f', dest='config_file', required=False, help="cfnctl config file in ~/.cfnctlconfig")
     opt_group.add_argument('-l', dest='ls_stacks', required=False, help='List stacks', action='store_true')
     opt_group.add_argument('-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
     opt_group.add_argument('-p', dest='aws_profile', required=False, help='AWS Profile')
@@ -61,7 +61,8 @@ def main():
     ls_all_stack_info = args.ls_all_stack_info
     ##verbose_config_file = args.verbose_config_file
 
-    errmsg_cr = "Creating a stack requires create flag (-c), and both the stack name (-s) and the template (-t)"
+    errmsg_cr = "Creating a stack requires create flag (-c), and both the stack name (-s), and for new stacks " \
+                "the template (-t) flag"
 
     aws_profile = 'NULL'
     if args.aws_profile:
@@ -86,14 +87,27 @@ def main():
                     stack = stack[:37] + "..."
                 print('{0:<42.40} {1:<21.19} {2:<30.28} {3:<.30}'.format(stack, str(i[0]), i[1], i[2]))
         elif ls_stacks:
-            print("Lsting stacks...")
+            print("Listing stacks...")
             stacks = client.ls_stacks(show_deleted=False)
             for stack, i in sorted(stacks.items()):
                 print(' {}'.format(stack))
-
     elif create_stack:
-        if template and stack_name:
+        if stack_name and not template:
             try:
+                response = client.cr_stack(stack_name, config_file, set_rollback=rollback)
+            except Exception as e:
+                raise ValueError(e)
+
+        elif template and stack_name:
+
+            if not client.url_check(template):
+                if not os.path.isfile(template):
+                    errmsg = 'File "{}" does not exists'.format(template)
+                    raise ValueError(errmsg)
+            try:
+                if config_file:
+                    config_file = config_file
+                    print("Should use {}".format(config_file))
                 response = client.cr_stack(stack_name, config_file, set_rollback=rollback, template=template)
                 return
             except Exception as e:
