@@ -26,11 +26,11 @@ def arg_parse():
                                      description='Launch and manage CloudFormation templates from the command line')
 
     opt_group = parser.add_argument_group()
-    opt_group.add_argument('-a', dest='ls_stacks', required=False, help='List stacks', action='store_true')
+    opt_group.add_argument('-a', dest='ls_all_stack_info', required=False, help='List all stack info', action='store_true')
     opt_group.add_argument('-b', dest='bucket', required=False, help='Bucket to upload template to')
     opt_group.add_argument('-c', dest='create_stack', required=False, help="Create a stack", action='store_true')
     opt_group.add_argument('-f', dest='config_file', required=False, help="cfnctl config file, list with (-l)")
-    opt_group.add_argument('-l', dest='list_configs', required=False, help='List config files', action='store_true')
+    opt_group.add_argument('-l', dest='ls_stacks', required=False, help='List stacks', action='store_true')
     opt_group.add_argument('-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
     opt_group.add_argument('-p', dest='aws_profile', required=False, help='AWS Profile')
     opt_group.add_argument('-r', dest='region', required=False, help="Region name")
@@ -58,7 +58,7 @@ def main():
     template = args.template
     config_file = args.config_file
     ls_stacks = args.ls_stacks
-    list_configs = args.list_configs
+    ls_all_stack_info = args.ls_all_stack_info
     ##verbose_config_file = args.verbose_config_file
 
     errmsg_cr = "Creating a stack requires create flag (-c), and both the stack name (-s) and the template (-t)"
@@ -73,22 +73,24 @@ def main():
 
     client = CfnControl(region=region,aws_profile=aws_profile)
 
-    if list_configs:
-        print('Local cfnctl config files in dir {0}: \n'.format(client.cfn_config_file_dir))
-        try:
-            response = client.get_config_files()
-            for r in response:
-                print('  {0}'.format(r))
-            print('\n')
-        except Exception as e:
-            raise ValueError(e)
-    elif ls_stacks:
-        print("Gathering info on CFN stacks...")
-        stacks = client.ls_stacks(show_deleted=False)
-        for stack, i in sorted(stacks.items()):
-            if len(stack) > 37:
-                stack = stack[:37] + "..."
-            print('{0:<42.40} {1:<21.19} {2:<30.28} {3:<.30}'.format(stack, str(i[0]), i[1], i[2]))
+    if ls_all_stack_info or ls_stacks:
+        if ls_all_stack_info and ls_stacks:
+            errmsg = "Specify either -l or -a, not both"
+            raise ValueError(errmsg)
+
+        if ls_all_stack_info:
+            print("Gathering all info on CFN stacks...")
+            stacks = client.ls_stacks(show_deleted=False)
+            for stack, i in sorted(stacks.items()):
+                if len(stack) > 37:
+                    stack = stack[:37] + "..."
+                print('{0:<42.40} {1:<21.19} {2:<30.28} {3:<.30}'.format(stack, str(i[0]), i[1], i[2]))
+        elif ls_stacks:
+            print("Lsting stacks...")
+            stacks = client.ls_stacks(show_deleted=False)
+            for stack, i in sorted(stacks.items()):
+                print(' {}'.format(stack))
+
     elif create_stack:
         if template and stack_name:
             try:
