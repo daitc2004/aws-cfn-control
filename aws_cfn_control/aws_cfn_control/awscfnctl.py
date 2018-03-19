@@ -505,6 +505,8 @@ class CfnControl:
         :return:
         """
 
+        response = None
+
         try:
             stk_response = self.client_cfn.describe_stacks(StackName=stack_name)
             raise ValueError('The stack "{0}" exists.  Exiting...'.format(stack_name))
@@ -602,28 +604,40 @@ class CfnControl:
         return response
 
     def ls_stacks(self, stack_name=None, show_deleted=False):
+        """
+        Using paginator for getting stack info, as the client.list_stack() will not get older stacks (>6 months)
+        :param stack_name:  stack_name
+        :param show_deleted:  Should we show deleted stacks also, StackStatus == DELETE_COMPLETE
+        :return: dictionary of stacks, formatting needs to happen after the return
 
-        response = self.client_cfn.list_stacks()
+        """
+
+        all_stacks = list()
+
+        paginator = self.client_cfn.get_paginator('list_stacks')
+        response_iterator = paginator.paginate()
 
         stacks = dict()
         show_stack = False
-        for r in response['StackSummaries']:
 
-            if [r['StackName']] == stack_name:
-                show_stack = True
-            elif show_deleted and r['StackStatus'] == "DELETE_COMPLETE":
-                show_stack = True
-            elif r['StackStatus'] == "DELETE_COMPLETE":
-                show_stack = False
-            else:
-                show_stack = True
+        for page in response_iterator:
+            all_stacks = page['StackSummaries']
+            for r in all_stacks:
 
-            if show_stack:
-                try:
-                    stacks[r['StackName']] = [str(r['CreationTime']), r['StackStatus'], r['TemplateDescription']]
+                if [r['StackName']] == stack_name:
+                    show_stack = True
+                elif show_deleted and r['StackStatus'] == "DELETE_COMPLETE":
+                    show_stack = True
+                elif r['StackStatus'] == "DELETE_COMPLETE":
+                    show_stack = False
+                else:
+                    show_stack = True
 
-                except Exception as e:
-                    stacks[r['StackName']] = [str(r['CreationTime']), r['StackStatus'], "No Description"]
+                if show_stack:
+                    try:
+                        stacks[r['StackName']] = [str(r['CreationTime']), r['StackStatus'], r['TemplateDescription']]
+                    except Exception as e:
+                        stacks[r['StackName']] = [str(r['CreationTime']), r['StackStatus'], "No Description"]
 
         return stacks
 

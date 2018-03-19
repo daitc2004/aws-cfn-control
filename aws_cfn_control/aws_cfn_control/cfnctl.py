@@ -86,7 +86,9 @@ def main():
         print("Gathering info on CFN stacks...")
         stacks = client.ls_stacks(show_deleted=False)
         for stack, i in sorted(stacks.items()):
-            print('{0:<32.30} {1:<21.19} {2:<30.28} {3:<.30}'.format(stack, str(i[0]), i[1], i[2]))
+            if len(stack) > 37:
+                stack = stack[:37] + "..."
+            print('{0:<42.40} {1:<21.19} {2:<30.28} {3:<.30}'.format(stack, str(i[0]), i[1], i[2]))
     elif create_stack:
         if template and stack_name:
             try:
