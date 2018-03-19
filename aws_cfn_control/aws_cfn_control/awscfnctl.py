@@ -82,6 +82,7 @@ class CfnControl:
         self.client_ec2 = session.client('ec2', region_name=self.region)
         self.client_asg = session.client('autoscaling', region_name=self.region)
         self.client_cfn = session.client('cloudformation', region_name=self.region)
+        self.client_s3  = session.client('s3', region_name=self.region)
 
         # grab passed arguments
         self.asg = kwords.get('asg')
@@ -97,13 +98,17 @@ class CfnControl:
 
         # stack information
         self.stack_name = None
-        self.TemplateUrl = 'NULL'
+        self.template = None
+        self.TemplateUrl = None
+        self.TemplateBody = None
+
 
         # cfnctl configuration file
         self.config_file_list = list()
         self.cfn_config_file_values = dict()
         self.cfn_config_file_basename = None
         self.homedir = os.path.expanduser("~")
+        self.my_cwd = os.path.curdir
         self.cfn_config_base_dir = ".cfnctlconfig"
         self.cfn_config_file_dir = os.path.join(self.homedir, self.cfn_config_base_dir)
 
@@ -478,29 +483,83 @@ class CfnControl:
 
         return params
 
-    def cr_stack(self, stack_name, cfn_config_file, set_rollback='ROLLBACK'):
+    @staticmethod
+    def url_check(url):
+        try:
+            result = urlparse.urlparse(url)
+            return result.scheme and result.netloc and result.path
+        except:
+            return False
+
+    def cr_stack(self, stack_name, cfn_config_file, set_rollback='ROLLBACK', template=None):
+        """
+        Three steps:
+
+        1. Validate template
+        2. Build config file
+        3. Launch Stack
+
+        :param stack_name:
+        :param cfn_config_file:
+        :param set_rollback:
+        :param template_url:
+        :param template_body:
+        :return:
+        """
+
+        template_url = None
+        template_body = None
+
+        # check if the template is a URL, or a local file
+        if self.url_check(template):
+            template_url = template
+            self.validate_cfn_template(template_url=template_url)
+            self.build_cfn_config(template_url)
+        else:
+            # get file location
+            template_path = os.path.abspath(template)
+            print("Checking file {0}". format(template_path))
+            template_body = template
+            self.validate_cfn_template(template_body=template_body)
+            self.build_cfn_config(template_body)
 
         cfn_params = self.read_cfn_config_file(cfn_config_file)
         self.cfn_config_file = cfn_config_file
 
+        print("Trying to launch stack")
+
         try:
-            template_url = self.TemplateUrl
-            # Debug
-            # print('Using stack template {0}'.format(template_url))
-            response = self.client_cfn.create_stack(
-                StackName=stack_name,
-                TemplateURL=template_url,
-                Parameters=cfn_params,
-                TimeoutInMinutes=600,
-                Capabilities=['CAPABILITY_IAM'],
-                OnFailure=set_rollback,
-                Tags=[
-                    {
+
+            if template_url:
+
+                response = self.client_cfn.create_stack(
+                    StackName=stack_name,
+                    TemplateURL=template_url,
+                    Parameters=cfn_params,
+                    TimeoutInMinutes=600,
+                    Capabilities=['CAPABILITY_IAM'],
+                    OnFailure=set_rollback,
+                    Tags=[ {
                         'Key': 'Name',
                         'Value': stack_name
-                    },
-                ]
-            )
+                    }, ]
+                )
+
+            elif template_body:
+
+                response = self.client_cfn.create_stack(
+                    StackName=stack_name,
+                    TemplateBody=template_body,
+                    Parameters=cfn_params,
+                    TimeoutInMinutes=600,
+                    Capabilities=['CAPABILITY_IAM'],
+                    OnFailure=set_rollback,
+                    Tags=[ {
+                            'Key': 'Name',
+                            'Value': stack_name
+                        }, ]
+                )
+
         except ClientError as e:
             print(e.response['Error']['Message'])
             return
@@ -542,19 +601,15 @@ class CfnControl:
 
     def ls_stacks(self, stack_name=None, show_deleted=False):
 
-        response = None
-
-        if stack_name is None:
-            response = self.client_cfn.list_stacks()
-        else:
-            pass
-            #list one stack
+        response = self.client_cfn.list_stacks()
 
         stacks = dict()
         show_stack = False
         for r in response['StackSummaries']:
 
-            if show_deleted and r['StackStatus'] == "DELETE_COMPLETE":
+            if [r['StackName']] == stack_name:
+                show_stack = True
+            elif show_deleted and r['StackStatus'] == "DELETE_COMPLETE":
                 show_stack = True
             elif r['StackStatus'] == "DELETE_COMPLETE":
                 show_stack = False
@@ -784,19 +839,34 @@ class CfnControl:
         if stack_name is None:
             stack_name = self.stack_name
 
-        response = self.client_cfn.describe_stacks(StackName=stack_name, )
+        stack_status = self.ls_stacks(stack_name=stack_name)
+        for stack, i in sorted(stack_status.items()):
+            if stack == stack_name:
+                print("\nStatus:")
+                print('{0:<32.30} {1:<21.19} {2:<30.28} {3:<.30}'.format(stack, str(i[0]), i[1], i[2]))
+                print
+
+        response = self.client_cfn.describe_stacks(StackName=stack_name)
 
         for i in response['Stacks']:
 
             print('[Parameters]')
-            for p in i['Parameters']:
-                print('{0:<35} = {1:<30}'.format(p['ParameterKey'], p['ParameterValue']))
+            try:
+                for p in i['Parameters']:
+                    print('{0:<35} = {1:<30}'.format(p['ParameterKey'], p['ParameterValue']))
+            except Exception as e:
+                print("No Parameters found")
+                raise ValueError(e)
 
             print("")
 
             print('[Outputs]')
-            for o in i['Outputs']:
-                print('{0:<35} = {1:<30}'.format(o['OutputKey'], o['OutputValue']))
+            try:
+                for o in i['Outputs']:
+                    print('{0:<35} = {1:<30}'.format(o['OutputKey'], o['OutputValue']))
+            except Exception as e:
+                print("No Outputs found")
+                raise ValueError(e)
 
         print("")
         return
@@ -863,11 +933,11 @@ class CfnControl:
 
         return vpc_id
 
-    def build_cfn_config(self, template_url, verbose=False):
+    def build_cfn_config(self, template, verbose=False):
 
         value_already_set = list()
         cfn_config_file_to_write = dict()
-        cfn_config_file = self.get_cfnconfig_file(template_url)
+        cfn_config_file = self.get_cfnconfig_file(template)
         found_required_val = False
         vpc_id = 'NULL'
 
@@ -887,20 +957,29 @@ class CfnControl:
 
         print("Using config file {0}".format(cfn_config_file))
 
-        (bucket, key) = self.get_bucket_and_key_from_url(template_url)
-        s3_object = self.s3.Object(bucket, key)
-        try:
-            s3_object_content = s3_object.get()['Body'].read().decode('utf-8')
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'AccessDenied':
-                errmsg = "\nAccess Denied: Are you using the correct CFN template and region for the CFN template?"
-                raise ValueError(e[0] + errmsg)
-            elif e.response['Error']['Code'] == 'NoSuchKey':
-                errmsg = "\nCan't find {0} in bucket {1}".format(key, bucket)
-                raise ValueError(e[0] + errmsg)
-            raise ValueError(e)
+        s3_object_content = None
+
+        if self.url_check(template):
+            template_url = template
+
+            (bucket, key) = self.get_bucket_and_key_from_url(template_url)
+            s3_object = self.s3.Object(bucket, key)
+            try:
+                s3_object_content = s3_object.get()['Body'].read().decode('utf-8')
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'AccessDenied':
+                    errmsg = "\nAccess Denied: Are you using the correct CFN template and region for the CFN template?"
+                    raise ValueError(e[0] + errmsg)
+                elif e.response['Error']['Code'] == 'NoSuchKey':
+                    errmsg = "\nCan't find {0} in bucket {1}".format(key, bucket)
+                    raise ValueError(e[0] + errmsg)
+                raise ValueError(e)
+
+        else:
+            template_body = template
 
         json_content = json.loads(s3_object_content)
+
         if verbose:
             pass
 
@@ -1224,6 +1303,64 @@ class CfnControl:
                 raise ValueError(e)
 
         return response['SecurityGroups']
+
+    def validate_cfn_template(self, template_url=None, template_body=None):
+
+        response = None
+
+        if template_url is not None and template_body is not None:
+            errmsg = "Specify either TemplateUrl or TemplateBody, not both"
+            raise ValueError(errmsg)
+
+        if template_url is not None:
+            print("Validating TemplateUrl {0}".format(template_url))
+            try:
+                response = self.client_cfn.validate_template(TemplateURL=template_url)
+                print("Done")
+            except Exception as e:
+                raise ValueError("validate_cfn_template: " + e[0])
+        elif template_body is not None:
+            print("Validating TemplateBody {0}".format(template_body))
+            try:
+                template_body = self.parse_cfn_template(template_body)
+                response = self.client_cfn.validate_template(TemplateBody=template_body)
+                print(response)
+            except Exception as e:
+                errmsg = e[0]
+                if "Member must have length less than or equal to 51200" in e[0]:
+                    errmsg = " Member must have length less than or equal to 51200"
+                raise ValueError(errmsg)
+
+        return
+
+    def parse_cfn_template(self, template=None):
+
+        if template is None:
+            template = self.template
+
+        with open(template) as file:
+            template_obj = file.read()
+
+        return template_obj
+
+    def upload_to_bucket(self, filename, bucket, key):
+        """
+
+        :param bucket:  bucket name
+        :param filename:  file to upload
+        :return:  bucket URL
+        """
+        key = filename
+        filename_path = os.path.abspath(filename)
+
+        try:
+            response = self.client_s3.upload_file(filename_path, bucket, key)
+        except Exception as e:
+            raise ValueError(e)
+
+        url = '{}/{}/{}'.format(self.client_s3.meta.endpoint_url, bucket, key)
+
+        return url
 
     def setup(self):
         pass

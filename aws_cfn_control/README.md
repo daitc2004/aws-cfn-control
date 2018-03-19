@@ -17,11 +17,10 @@ sudo pip install aws-cfn-control
 
 TL;DR
 
-1. Upload CloudFormation template to an s3 bucket
-2. Build cfnctl configuration file
-3. Fill in parameter values by editing the cfnctl configuration file
-4. Launch the stack
-5. Check stack status and outputs
+1. Launch stack with either:
+   a. Local template: `cfnctl -c -t stack1.json`
+   b. Template in s3 bucket `ctnctl -c -t https://s3-us-west-1.amazonaws.com/user-stacks/stack1.json`
+2. Check stack status and outputs
 
 ### Upload CloudFormation template to an s3 bucket
 
