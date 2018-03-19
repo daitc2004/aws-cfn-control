@@ -531,12 +531,21 @@ class CfnControl:
         cfn_params = self.read_cfn_config_file(cfn_config_file)
         self.cfn_config_file = cfn_config_file
 
-        if self.cfn_config_file_values['TemplateURL']:
-            self.template_url = self.cfn_config_file_values['TemplateURL']
-            print("Using template from URL {}".format(self.template_url))
-        elif self.cfn_config_file_values['TemplateBody']:
-            self.template_body = self.cfn_config_file_values['TemplateBody']
-            print("Using template file {}".format(self.template_body))
+        try:
+            if self.cfn_config_file_values['TemplateURL']:
+                self.template_url = self.cfn_config_file_values['TemplateURL']
+                print("Using template from URL {}".format(self.template_url))
+        except Exception as e:
+            if "TemplateURL" in e[0]:
+                try:
+                    if self.cfn_config_file_values['TemplateBody']:
+                        self.template_body = self.cfn_config_file_values['TemplateBody']
+                        print("Using template file {}".format(self.template_body))
+                        self.template_body = self.parse_cfn_template(self.template_body)
+                except Exception as e:
+                    raise ValueError(e)
+            else:
+                raise ValueError(e)
 
         print("Trying to launch stack {}".format(stack_name))
 
