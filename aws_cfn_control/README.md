@@ -22,20 +22,19 @@ TL;DR
    b. Template in s3 bucket `ctnctl -c -t https://s3-us-west-1.amazonaws.com/user-stacks/stack1.json`
 2. Check stack status and outputs
 
-### Upload CloudFormation template to an s3 bucket
 
-```
-$ aws s3 cp stack1.json s3://user-stacks/
-```
+### Launch stack 
 
-### Build cfnctl configuration file using template in s3 bucket
+If the template file is more that 51,200 bytes, you can using the option `-b <bucket>` and the template file will be uplaoded to the bucket for you (the bucket should already exists). 
 
 The configuration process accounts for default values, built-in lists, and will prompted on any Parameter that is using "ConstraintDescription" and does not have a value.
 
 ```
-$ cfnctl -r us-east-1 -b https://s3-us-west-1.amazonaws.com/user-stacks/stack1.json
-Creating config file /Users/joeuser/.cfnctlconfig/stack1.json.cf
-Using config file /Users/joeuser/.cfnctlconfig/stack1.json.cf
+$ cfnctl -c -s stack1 -t stack1.json -b jouser-cfn
+Using AWS credentials profile "default"
+Lools like we're in us-east-1
+Uploading stack1.json to bucket jouser-cfn and creating stack
+Creating config file /Users/joeuser/.cfnctlconfig/stack1.json.stack1
 EC2 keys found in us-east-1:
   Jouser_IAD
 Select EC2 Key: Jouser_IAD
@@ -59,40 +58,6 @@ Getting subnets from vpc-5u5u235u...
   subnet-asdfeirj | us-east-1c | Default 1c
 Select subnet: subnet-123ljias
 Done building cfnctl config file.
-```
-
-### Fill in parameter values by editing the cfnctl configuration file
-
-Edit the configuration file as needed, if you see "<VALUE_NEEDED>", those values can not be null for successful stack luanch.
-
-```
-[AWS-Config]
-TemplateUrl = https://s3-us-west-1.amazonaws.com/user-stacks/stack1.json
-
-[Paramters]
-ASG01ClusterSize                    = 2
-ASG01InstanceType                   = c4.8xlarge
-ASG01MaxClusterSize                 = 2
-ASG01MinClusterSize                 = 0
-AdditionalBucketName                =
-CreateElasticIP                     = True
-EC2KeyName                          = Joeuser_IAD
-EfsId                               =
-OperatingSystem                     = alinux
-SSHBucketName                       = jouser-keys
-SSHClusterKeyPriv                   = id_rsa
-SSHClusterKeyPub                    = id_rsa.pub
-SecurityGroups                      = sg-1234asdf
-Subnet                              = subnet-123ljias
-UsePublicIp                         = True
-VPCId                               = vpc-5u5u235u
-```
-
-
-### Launch the stack
-
-```
-$ cfnctl -s st1 -r us-east-1 -c stack1.json.cf
 Using config file: /Users/jouser/.cfnctlconfig/stack1.json.cf
 cluster-test2                  :  CREATE_IN_PROGRESS
 RootRole                       :  CREATE_IN_PROGRESS
@@ -135,6 +100,34 @@ Subnet                              = subnet-123ljias
 [Outputs]
 ElasticIP                           = 109.234.22.45
 
+```
+
+
+### Change or fill in parameter values by editing the cfnctl configuration file
+
+```
+Edit the configuration file as needed, if you see "<VALUE_NEEDED>", those values can not be null for successful stack luanch.
+
+[AWS-Config]
+TemplateUrl = https://s3-us-west-1.amazonaws.com/user-stacks/stack1.json
+
+[Paramters]
+ASG01ClusterSize                    = 2
+ASG01InstanceType                   = c4.8xlarge
+ASG01MaxClusterSize                 = 2
+ASG01MinClusterSize                 = 0
+AdditionalBucketName                =
+CreateElasticIP                     = True
+EC2KeyName                          = Joeuser_IAD
+EfsId                               =
+OperatingSystem                     = alinux
+SSHBucketName                       = jouser-keys
+SSHClusterKeyPriv                   = id_rsa
+SSHClusterKeyPub                    = id_rsa.pub
+SecurityGroups                      = sg-1234asdf
+Subnet                              = subnet-123ljias
+UsePublicIp                         = True
+VPCId                               = vpc-5u5u235u
 ```
 
 

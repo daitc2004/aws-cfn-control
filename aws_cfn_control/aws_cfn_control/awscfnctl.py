@@ -111,6 +111,7 @@ class CfnControl:
         self.my_cwd = os.path.curdir
         self.cfn_config_base_dir = ".cfnctlconfig"
         self.cfn_config_file_dir = os.path.join(self.homedir, self.cfn_config_base_dir)
+        self.vpc_id = None
 
         # first API call
         self.key_pairs = list()
@@ -519,9 +520,7 @@ class CfnControl:
             self.validate_cfn_template(template_url=template_url)
             self.build_cfn_config(stack_name, template_url)
         else:
-            # get file location
             template_path = os.path.abspath(template)
-            print("Checking file {0}". format(template_path))
             self.validate_cfn_template(template_body=template_path)
             self.build_cfn_config(stack_name, template_path)
             template_body = self.parse_cfn_template(template_path)
@@ -932,9 +931,9 @@ class CfnControl:
             self.rm_cfnconfig_file(cfn_config_file)
             return
 
-        vpc_id = cli_val
+        self.vpc_id = cli_val
 
-        return vpc_id
+        return self.vpc_id
 
     def build_cfn_config(self, stack_name, template, verbose=False):
 
@@ -945,7 +944,6 @@ class CfnControl:
         cfn_config_file_to_write = dict()
         cfn_config_file = self.get_cfnconfig_file(template + "." + stack_name)
         found_required_val = False
-        vpc_id = 'NULL'
 
         if not os.path.isfile(cfn_config_file):
             # create config file and dir
@@ -960,8 +958,6 @@ class CfnControl:
         else:
             print("Config file {0} already exists, no changes made.  ".format(cfn_config_file))
             return
-
-        print("Using config file {0}".format(cfn_config_file))
 
         template_content = None
 
@@ -1063,12 +1059,12 @@ class CfnControl:
 
                 try:
                     if json_content['Parameters'][p]['Type'] == 'AWS::EC2::VPC::Id':
-                        if vpc_id == 'NULL':
-                            vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
-                            cfn_config_file_to_write[p] = vpc_id
+                        if self.vpc_id is None:
+                            self.vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
+                            cfn_config_file_to_write[p] = self.vpc_id
                             value_already_set.append(p)
                         else:
-                            cfn_config_file_to_write[p] = vpc_id
+                            cfn_config_file_to_write[p] = self.vpc_id
                             value_already_set.append(p)
 
                 except Exception as e:
@@ -1076,18 +1072,19 @@ class CfnControl:
 
                 # get and set List<AWS::EC2::Subnet::Id>
                 try:
-                    if json_content['Parameters'][p]['Type'] == 'List<AWS::EC2::Subnet::Id>':
+                    if json_content['Parameters'][p]['Type'] == 'List<AWS::EC2::Subnet::Id>' or \
+                                    json_content['Parameters'][p]['Type'] == 'AWS::EC2::Subnet::Id':
 
-                        if vpc_id == 'NULL':
+                        if self.vpc_id is None:
                             try:
-                                vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
+                                self.vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
                             except Exception as e:
-                                print(e)
+                                raise ValueError(e)
 
-                        print('Getting subnets from {0}...'.format(vpc_id))
+                        print('Getting subnets for {0} ...'.format(self.vpc_id))
 
                         subnet_ids = list()
-                        all_subnets = self.get_subnets_from_vpc(vpc_id)
+                        all_subnets = self.get_subnets_from_vpc(self.vpc_id)
                         for subnet_id, subnet_info in all_subnets.items():
                             subnet_ids.append(subnet_id)
                             try:
@@ -1106,15 +1103,22 @@ class CfnControl:
                 # get and set AWS::EC2::SecurityGroup::Id
                 try:
                     if json_content['Parameters'][p]['Type'] == 'AWS::EC2::SecurityGroup::Id':
-                        print('Getting security groups...')
+
+                        if self.vpc_id is None:
+                            try:
+                                self.vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
+                            except Exception as e:
+                                raise ValueError(e)
+
+                        print('Getting security groups for {0} ...'.format(self.vpc_id))
 
                         security_group_ids = list()
-                        all_security_group_info = self.get_security_groups()
+                        all_security_group_info = self.get_security_groups(self.vpc_id)
 
                         for r in all_security_group_info:
                             security_group_ids.append(r['GroupId'])
                             print('  {0} | {1}'.format(r['GroupId'], r['GroupName'][0:20]))
-                        cli_val = raw_input('Enter valid security group: ')
+                        cli_val = raw_input('Select security group: ')
                         if cli_val not in security_group_ids:
                             print("Valid security group required.  Exiting... ")
                             self.rm_cfnconfig_file(cfn_config_file)
@@ -1322,13 +1326,11 @@ class CfnControl:
             raise ValueError(errmsg)
 
         if template_url is not None:
-            print("Validating TemplateURL {0}".format(template_url))
             try:
                 response = self.client_cfn.validate_template(TemplateURL=template_url)
             except Exception as e:
                 raise ValueError("validate_cfn_template: " + e[0])
         elif template_body is not None:
-            print("Validating TemplateBody {0}".format(template_body))
             try:
                 template_body = self.parse_cfn_template(template_body)
                 response = self.client_cfn.validate_template(TemplateBody=template_body)
