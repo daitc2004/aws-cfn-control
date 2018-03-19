@@ -112,6 +112,8 @@ class CfnControl:
         self.cfn_config_base_dir = ".cfnctlconfig"
         self.cfn_config_file_dir = os.path.join(self.homedir, self.cfn_config_base_dir)
         self.vpc_id = None
+        self.template_url = None
+        self.template_body = None
 
         # first API call
         self.key_pairs = list()
@@ -500,8 +502,7 @@ class CfnControl:
         :param stack_name:
         :param cfn_config_file:
         :param set_rollback:
-        :param template_url:
-        :param template_body:
+        :param template:
         :return:
         """
 
@@ -513,32 +514,39 @@ class CfnControl:
         except ClientError as e:
             pass
 
-        template_url = None
-        template_body = None
-
-        # check if the template is a URL, or a local file
-        if self.url_check(template):
-            template_url = template
-            self.validate_cfn_template(template_url=template_url)
-            self.build_cfn_config(stack_name, template_url)
-        else:
-            template_path = os.path.abspath(template)
-            self.validate_cfn_template(template_body=template_path)
-            self.build_cfn_config(stack_name, template_path)
-            template_body = self.parse_cfn_template(template_path)
+        if template is not None:
+            # check if the template is a URL, or a local file
+            if self.url_check(template):
+                self.template_url = template
+                self.validate_cfn_template(template_url=self.template_url)
+                if not cfn_config_file:
+                    cfn_config_file = self.build_cfn_config(stack_name, self.template_url)
+            else:
+                template_path = os.path.abspath(template)
+                self.validate_cfn_template(template_body=template_path)
+                if not cfn_config_file:
+                    cfn_config_file = self.build_cfn_config(stack_name, template_path)
+                self.template_body = self.parse_cfn_template(template_path)
 
         cfn_params = self.read_cfn_config_file(cfn_config_file)
         self.cfn_config_file = cfn_config_file
 
-        print("Trying to launch stack")
+        if self.cfn_config_file_values['TemplateURL']:
+            self.template_url = self.cfn_config_file_values['TemplateURL']
+            print("Using template from URL {}".format(self.template_url))
+        elif self.cfn_config_file_values['TemplateBody']:
+            self.template_body = self.cfn_config_file_values['TemplateBody']
+            print("Using template file {}".format(self.template_body))
+
+        print("Trying to launch stack {}".format(stack_name))
 
         try:
 
-            if template_url:
+            if self.template_url:
 
                 response = self.client_cfn.create_stack(
                     StackName=stack_name,
-                    TemplateURL=template_url,
+                    TemplateURL=self.template_url,
                     Parameters=cfn_params,
                     TimeoutInMinutes=600,
                     Capabilities=['CAPABILITY_IAM'],
@@ -549,11 +557,11 @@ class CfnControl:
                     }, ]
                 )
 
-            elif template_body:
+            elif self.template_body:
 
                 response = self.client_cfn.create_stack(
                     StackName=stack_name,
-                    TemplateBody=template_body,
+                    TemplateBody=self.template_body,
                     Parameters=cfn_params,
                     TimeoutInMinutes=600,
                     Capabilities=['CAPABILITY_IAM'],
@@ -969,9 +977,21 @@ class CfnControl:
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         raise
-        else:
-            print("Config file {0} already exists, no changes made.  ".format(cfn_config_file))
-            return
+        elif os.path.isfile(cfn_config_file):
+            cli_val = raw_input("Config file {0} already exists, use this file [y/N]:  ".format(cfn_config_file))
+
+            if not cli_val:
+                cli_val = 'n'
+
+            if cli_val.lower().startswith("n"):
+                try:
+                    os.remove(cfn_config_file)
+                    self.build_cfn_config(stack_name, template, verbose=verbose)
+                    return
+                except Exception as e:
+                    raise ValueError(e)
+            else:
+                return
 
         template_content = None
 
@@ -1189,7 +1209,7 @@ class CfnControl:
 
         print("Done building cfnctl config file.")
 
-        return
+        return cfn_config_file
 
     def get_instance_info(self, instance_state=None):
 
