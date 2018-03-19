@@ -99,7 +99,7 @@ class CfnControl:
         # stack information
         self.stack_name = None
         self.template = None
-        self.TemplateUrl = None
+        self.TemplateURL = None
         self.TemplateBody = None
 
 
@@ -456,7 +456,8 @@ class CfnControl:
         not_cfn_param_keys = ['EnableEnaVfi',
                               'AddNetInterfaces',
                               'TotalNetInterfaces',
-                              'TemplateUrl'
+                              'TemplateURL',
+                              'TemplateBody'
                               ]
 
         for section_name in parser.sections():
@@ -465,11 +466,7 @@ class CfnControl:
                 if key in boolean_keys:
                     value = parser.getboolean(section_name, key)
 
-                if key == 'TemplateUrl':
-                    self.TemplateUrl = value
-                    # Debug
-                    # print('setting template_url {0}'.format(self.TemplateUrl))
-                elif key in not_cfn_param_keys:
+                if key in not_cfn_param_keys:
                     self.cfn_config_file_values[key] = value
                 else:
                     self.cfn_config_file_values[key] = value
@@ -507,6 +504,12 @@ class CfnControl:
         :return:
         """
 
+        try:
+            stk_response = self.client_cfn.describe_stacks(StackName=stack_name)
+            raise ValueError('The stack "{0}" exists.  Exiting...'.format(stack_name))
+        except ClientError as e:
+            pass
+
         template_url = None
         template_body = None
 
@@ -514,14 +517,14 @@ class CfnControl:
         if self.url_check(template):
             template_url = template
             self.validate_cfn_template(template_url=template_url)
-            self.build_cfn_config(template_url)
+            self.build_cfn_config(stack_name, template_url)
         else:
             # get file location
             template_path = os.path.abspath(template)
             print("Checking file {0}". format(template_path))
-            template_body = template
-            self.validate_cfn_template(template_body=template_body)
-            self.build_cfn_config(template_body)
+            self.validate_cfn_template(template_body=template_path)
+            self.build_cfn_config(stack_name, template_path)
+            template_body = self.parse_cfn_template(template_path)
 
         cfn_params = self.read_cfn_config_file(cfn_config_file)
         self.cfn_config_file = cfn_config_file
@@ -884,9 +887,9 @@ class CfnControl:
 
         return bucket, key
 
-    def get_cfnconfig_file(self, template_url='NULL'):
+    def get_cfnconfig_file(self, template=None):
 
-        self.cfn_config_file_basename = os.path.basename(template_url) + ".cf"
+        self.cfn_config_file_basename = os.path.basename(template)
         self.cfn_config_file = os.path.join(self.cfn_config_file_dir, self.cfn_config_file_basename)
 
         return self.cfn_config_file
@@ -933,11 +936,14 @@ class CfnControl:
 
         return vpc_id
 
-    def build_cfn_config(self, template, verbose=False):
+    def build_cfn_config(self, stack_name, template, verbose=False):
+
+        template_url = None
+        template_body = None
 
         value_already_set = list()
         cfn_config_file_to_write = dict()
-        cfn_config_file = self.get_cfnconfig_file(template)
+        cfn_config_file = self.get_cfnconfig_file(template + "." + stack_name)
         found_required_val = False
         vpc_id = 'NULL'
 
@@ -957,7 +963,7 @@ class CfnControl:
 
         print("Using config file {0}".format(cfn_config_file))
 
-        s3_object_content = None
+        template_content = None
 
         if self.url_check(template):
             template_url = template
@@ -965,7 +971,7 @@ class CfnControl:
             (bucket, key) = self.get_bucket_and_key_from_url(template_url)
             s3_object = self.s3.Object(bucket, key)
             try:
-                s3_object_content = s3_object.get()['Body'].read().decode('utf-8')
+                template_content = s3_object.get()['Body'].read().decode('utf-8')
             except ClientError as e:
                 if e.response['Error']['Code'] == 'AccessDenied':
                     errmsg = "\nAccess Denied: Are you using the correct CFN template and region for the CFN template?"
@@ -974,11 +980,12 @@ class CfnControl:
                     errmsg = "\nCan't find {0} in bucket {1}".format(key, bucket)
                     raise ValueError(e[0] + errmsg)
                 raise ValueError(e)
-
         else:
-            template_body = template
+            template_path = os.path.abspath(template)
+            template_body = template_path
+            template_content = self.parse_cfn_template(template)
 
-        json_content = json.loads(s3_object_content)
+        json_content = json.loads(template_content)
 
         if verbose:
             pass
@@ -1120,8 +1127,7 @@ class CfnControl:
                     pass
 
                 try:
-                    if cli_val == 'NULL' and default_val == 'NULL' and json_content['Parameters'][p][
-                        'ConstraintDescription']:
+                    if cli_val == 'NULL' and default_val == 'NULL' and json_content['Parameters'][p]['ConstraintDescription']:
                         print('Parameter "{0}" is required, but can be changed in config file'.format(p))
                         cli_val = raw_input('Enter {0}: '.format(p))
                         if cli_val == "":
@@ -1152,7 +1158,10 @@ class CfnControl:
         with open(self.cfn_config_file, 'w') as cfn_out_file:
 
             cfn_out_file.write('[AWS-Config]\n')
-            cfn_out_file.write('{0} = {1}\n'.format('TemplateUrl', template_url))
+            if template_url is not None:
+                cfn_out_file.write('{0} = {1}\n'.format('TemplateURL', template_url))
+            elif template_body is not None:
+                cfn_out_file.write('{0} = {1}\n'.format('TemplateBody', template_body))
             cfn_out_file.write('\n')
 
             cfn_out_file.write('[Paramters]\n')
@@ -1309,14 +1318,13 @@ class CfnControl:
         response = None
 
         if template_url is not None and template_body is not None:
-            errmsg = "Specify either TemplateUrl or TemplateBody, not both"
+            errmsg = "Specify either TemplateURL or TemplateBody, not both"
             raise ValueError(errmsg)
 
         if template_url is not None:
-            print("Validating TemplateUrl {0}".format(template_url))
+            print("Validating TemplateURL {0}".format(template_url))
             try:
                 response = self.client_cfn.validate_template(TemplateURL=template_url)
-                print("Done")
             except Exception as e:
                 raise ValueError("validate_cfn_template: " + e[0])
         elif template_body is not None:
@@ -1324,7 +1332,6 @@ class CfnControl:
             try:
                 template_body = self.parse_cfn_template(template_body)
                 response = self.client_cfn.validate_template(TemplateBody=template_body)
-                print(response)
             except Exception as e:
                 errmsg = e[0]
                 if "Member must have length less than or equal to 51200" in e[0]:
