@@ -38,7 +38,7 @@ def arg_parse():
     opt_group.add_argument('-s', dest='stack_name', required=False, help="Stack name")
     opt_group.add_argument('-t', dest='template', required=False, help='CFN Template from local file or URL')
     opt_group.add_argument('-y', dest='no_prompt', required=False, help='On interactive question, force yes', action='store_true')
-    #opt_group.add_argument('-v', dest='verbose_param_file', required=False, help='Verbose config file', action='store_true')
+    opt_group.add_argument('-v', dest='verbose_param_file', required=False, help='Verbose config file', action='store_true')
 
     if len(sys.argv[1:])==0:
         parser.print_help()
@@ -63,7 +63,7 @@ def main():
     stack_name = args.stack_name
     template = args.template
     no_prompt = args.no_prompt
-    ##verbose_param_file = args.verbose_param_file
+    verbose_param_file = args.verbose_param_file
 
     errmsg_cr = "Creating a stack requires create flag (-c), stack name (-s), and for new stacks " \
                 "the template (-t) flag or for configured stacks, the -f flag for parameters file, " \
@@ -99,7 +99,7 @@ def main():
     elif create_stack:
         if stack_name and param_file and not template:
             try:
-                response = client.cr_stack(stack_name, param_file, set_rollback=rollback)
+                response = client.cr_stack(stack_name, param_file, verbose=verbose_param_file, set_rollback=rollback)
             except Exception as e:
                 raise ValueError(e)
 
@@ -113,7 +113,7 @@ def main():
                 if param_file:
                     param_file = param_file
                     print("Should use {}".format(param_file))
-                response = client.cr_stack(stack_name, param_file, set_rollback=rollback, template=template)
+                response = client.cr_stack(stack_name, param_file, verbose=verbose_param_file, set_rollback=rollback, template=template)
                 return
             except Exception as e:
                 if "Member must have length less than or equal to 51200" in e[0]:
@@ -121,7 +121,7 @@ def main():
                         print("Uploading {0} to bucket {1} and creating stack".format(template, bucket))
                         try:
                             template_url = client.upload_to_bucket(template,bucket,template)
-                            response = client.cr_stack(stack_name, param_file, set_rollback=rollback, template=template_url)
+                            response = client.cr_stack(stack_name, param_file, verbose=verbose_param_file, set_rollback=rollback, template=template_url)
                         except Exception as e:
                             raise ValueError(e)
                     else:
