@@ -33,7 +33,7 @@ class CfnControl:
         """
         Main class init
 
-        :param kwords: aws_profile, region, asg, config_file, instances
+        :param kwords: aws_profile, region, asg, param_file, instances
 
             aws_profile:
             If this is not given, then search the session, otherwise use "default"
@@ -45,8 +45,8 @@ class CfnControl:
             asg:
             If an ASG name is given, append the instances from the ASG to the instance list
 
-            config_file:
-            Location of the the configuration file for cfnctl command (~/.cfnctlconfig)
+            param_file:
+            Location of the the parameter files for cfnctl command (~/.cfnparam)
 
             instances:
             list() of instances
@@ -86,7 +86,7 @@ class CfnControl:
 
         # grab passed arguments
         self.asg = kwords.get('asg')
-        self.cfn_config_file = kwords.get('config_file')
+        self.cfn_param_file = kwords.get('param_file')
 
         # get instances passed as an argument
         self.instances = list()
@@ -102,18 +102,17 @@ class CfnControl:
         self.TemplateURL = None
         self.TemplateBody = None
 
-
-        # cfnctl configuration file
-        self.config_file_list = list()
-        self.cfn_config_file_values = dict()
-        self.cfn_config_file_basename = None
-        self.homedir = os.path.expanduser("~")
         self.my_cwd = os.path.curdir
-        self.cfn_config_base_dir = ".cfnctlconfig"
-        self.cfn_config_file_dir = os.path.join(self.homedir, self.cfn_config_base_dir)
+        self.param_file_list = list()
+        self.cfn_param_file_values = dict()
+        self.cfn_param_file_basename = None
+        self.homedir = os.path.expanduser("~")
+        self.cfn_param_base_dir = ".cfnparam"
+        self.cfn_param_file_dir = os.path.join(self.homedir, self.cfn_param_base_dir)
         self.vpc_id = None
         self.template_url = None
         self.template_body = None
+        self.param_file_list = None
 
         # first API call
         self.key_pairs = list()
@@ -413,40 +412,40 @@ class CfnControl:
 
         return response_ec2_vfi, response_ec2_ena
 
-    def get_config_files(self, os_dir=None):
+    def get_param_files(self, os_dir):
 
         if os_dir is None:
-            os_dir = self.cfn_config_file_dir
+            os_dir = self.cfn_param_file_dir
 
         try:
-            self.config_file_list = os.listdir(os_dir)
-            return self.config_file_list
+            self.param_file_list = os.listdir(os_dir)
+            return self.param_file_list
         except Exception as e:
             raise ValueError(e)
 
-    def read_cfn_config_file(self, cfn_config_file=None):
+    def read_cfn_param_file(self, cfn_param_file=None):
 
         parser = SafeConfigParser()
         parser.optionxform = str
 
-        if not cfn_config_file:
-            cfn_config_file = self.cfn_config_file
+        if not cfn_param_file:
+            cfn_param_file = self.cfn_param_file
 
-        if os.path.isfile(cfn_config_file):
-            print("Using config file: {0}".format(cfn_config_file))
-            parser.read(cfn_config_file)
-        elif os.path.isfile(os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf")):
-            print("Using config file: {0}".format(
-                os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf"))
+        if os.path.isfile(cfn_param_file):
+            print("Using parameters file: {0}".format(cfn_param_file))
+            parser.read(cfn_param_file)
+        elif os.path.isfile(os.path.join(self.cfn_param_file_dir, cfn_param_file + ".json.cf")):
+            print("Using parameters file: {0}".format(
+                os.path.join(self.cfn_param_file_dir, cfn_param_file + ".json.cf"))
             )
-            parser.read(os.path.join(self.cfn_config_file_dir, cfn_config_file + ".json.cf"))
-        elif os.path.isfile(os.path.join(self.cfn_config_file_dir, cfn_config_file)):
-            print("Using config file: {0}".format(
-                os.path.join(self.cfn_config_file_dir, cfn_config_file))
+            parser.read(os.path.join(self.cfn_param_file_dir, cfn_param_file + ".json.cf"))
+        elif os.path.isfile(os.path.join(self.cfn_param_file_dir, cfn_param_file)):
+            print("Using parameters file: {0}".format(
+                os.path.join(self.cfn_param_file_dir, cfn_param_file))
             )
-            parser.read(os.path.join(self.cfn_config_file_dir, cfn_config_file))
+            parser.read(os.path.join(self.cfn_param_file_dir, cfn_param_file))
         else:
-            errmsg = "Config file {0} not found".format(cfn_config_file)
+            errmsg = "Config file {0} not found".format(cfn_param_file)
             raise ValueError(errmsg)
 
         params = list()
@@ -470,9 +469,9 @@ class CfnControl:
                     value = parser.getboolean(section_name, key)
 
                 if key in not_cfn_param_keys:
-                    self.cfn_config_file_values[key] = value
+                    self.cfn_param_file_values[key] = value
                 else:
-                    self.cfn_config_file_values[key] = value
+                    self.cfn_param_file_values[key] = value
                     params.append(
                         {
                             'ParameterKey': key,
@@ -491,16 +490,16 @@ class CfnControl:
         except:
             return False
 
-    def cr_stack(self, stack_name, cfn_config_file, set_rollback='ROLLBACK', template=None):
+    def cr_stack(self, stack_name, cfn_param_file, set_rollback='ROLLBACK', template=None):
         """
         Three steps:
 
         1. Validate template
-        2. Build config file
+        2. Build parameters file
         3. Launch Stack
 
         :param stack_name:
-        :param cfn_config_file:
+        :param cfn_param_file:
         :param set_rollback:
         :param template:
         :return:
@@ -519,27 +518,27 @@ class CfnControl:
             if self.url_check(template):
                 self.template_url = template
                 self.validate_cfn_template(template_url=self.template_url)
-                if not cfn_config_file:
-                    cfn_config_file = self.build_cfn_config(stack_name, self.template_url)
+                if not cfn_param_file:
+                    cfn_param_file = self.build_cfn_param(stack_name, self.template_url)
             else:
                 template_path = os.path.abspath(template)
                 self.validate_cfn_template(template_body=template_path)
-                if not cfn_config_file:
-                    cfn_config_file = self.build_cfn_config(stack_name, template_path)
+                if not cfn_param_file:
+                    cfn_param_file = self.build_cfn_param(stack_name, template_path)
                 self.template_body = self.parse_cfn_template(template_path)
 
-        cfn_params = self.read_cfn_config_file(cfn_config_file)
-        self.cfn_config_file = cfn_config_file
+        cfn_params = self.read_cfn_param_file(cfn_param_file)
+        self.cfn_param_file = cfn_param_file
 
         try:
-            if self.cfn_config_file_values['TemplateURL']:
-                self.template_url = self.cfn_config_file_values['TemplateURL']
+            if self.cfn_param_file_values['TemplateURL']:
+                self.template_url = self.cfn_param_file_values['TemplateURL']
                 print("Using template from URL {}".format(self.template_url))
         except Exception as e:
             if "TemplateURL" in e[0]:
                 try:
-                    if self.cfn_config_file_values['TemplateBody']:
-                        self.template_body = self.cfn_config_file_values['TemplateBody']
+                    if self.cfn_param_file_values['TemplateBody']:
+                        self.template_body = self.cfn_param_file_values['TemplateBody']
                         print("Using template file {}".format(self.template_body))
                         self.template_body = self.parse_cfn_template(self.template_body)
                 except Exception as e:
@@ -566,8 +565,8 @@ class CfnControl:
                                'Value': stack_name
                            },
                            {
-                               'Key': 'cfnctl_template',
-                               'Value': os.path.basename(cfn_config_file)
+                               'Key': 'cfnctl_param_file',
+                               'Value': os.path.basename(cfn_param_file)
                            },
                     ]
                 )
@@ -582,14 +581,14 @@ class CfnControl:
                     Capabilities=['CAPABILITY_IAM'],
                     OnFailure=set_rollback,
                     Tags=[
-                        {
-                            'Key': 'Name',
-                            'Value': stack_name
-                        },
-                        {
-                            'Key': 'cfnctl_template',
-                            'Value': os.path.basename(cfn_config_file)
-                        },
+                           {
+                               'Key': 'Name',
+                               'Value': stack_name
+                           },
+                           {
+                               'Key': 'cfnctl_param_file',
+                               'Value': os.path.basename(cfn_param_file)
+                           },
                     ]
                 )
 
@@ -606,7 +605,7 @@ class CfnControl:
         self.instances = self.get_inst_from_asg(self.asg)
 
         try:
-            if self.cfn_config_file_values['EnableEnaVfi']:
+            if self.cfn_param_file_values['EnableEnaVfi']:
                 print("Instances finishing booting")
                 time.sleep(60)
                 self.enable_ena_vfi(self.instances)
@@ -614,7 +613,7 @@ class CfnControl:
             pass
 
         try:
-            if self.cfn_config_file_values['AddNetInterfaces']:
+            if self.cfn_param_file_values['AddNetInterfaces']:
                 self.add_net_dev()
         except KeyError:
             pass
@@ -632,10 +631,40 @@ class CfnControl:
 
         return response
 
-    def del_stack(self,stack_name):
+    def del_stack(self,stack_name, no_prompt=None):
 
         try:
             stk_response = self.client_cfn.describe_stacks(StackName=stack_name)
+
+            if stk_response['Stacks'][0]['StackStatus'] == "DELETE_IN_PROGRESS":
+                print('{0} already being deleted'.format(stack_name))
+                return
+
+            for t in (stk_response['Stacks'][0]['Tags']):
+                if t['Key'] == "cfnctl_param_file":
+                    f_path = os.path.join(self.cfn_param_file_dir, t['Value'])
+                    if os.path.isfile(f_path):
+
+                        if no_prompt:
+                            try:
+                                os.remove(f_path)
+                                print('Removed parameters file {0}'.format(f_path))
+                            except Exception as e:
+                                raise ValueError(e)
+                        else:
+                            cli_val = raw_input('Parameters file "{0}" exists, delete also? [y/N] '.format(f_path))
+
+                            if not cli_val:
+                                cli_val = 'n'
+
+                            if cli_val.lower().startswith("y"):
+                                try:
+                                    os.remove(f_path)
+                                    print('Removed parameters file {0}'.format(f_path))
+                                except Exception as e:
+                                    raise ValueError(e)
+                            else:
+                                pass
         except ClientError as e:
             raise ValueError(e)
 
@@ -727,12 +756,12 @@ class CfnControl:
 
             num_int_count = 0
 
-            while num_interfaces < int(self.cfn_config_file_values['TotalNetInterfaces']):
+            while num_interfaces < int(self.cfn_param_file_values['TotalNetInterfaces']):
                 attach_resp = self.attach_new_dev(i,
                                                   num_interfaces_b + num_int_count,
-                                                  self.cfn_config_file_values['Subnet'],
+                                                  self.cfn_param_file_values['Subnet'],
                                                   self.stack_name + "-net_dev",
-                                                  self.cfn_config_file_values['SecurityGroups']
+                                                  self.cfn_param_file_values['SecurityGroups']
                                                   )
 
                 instance = self.ec2.Instance(i)
@@ -948,30 +977,30 @@ class CfnControl:
 
         return bucket, key
 
-    def get_cfnconfig_file(self, template=None):
+    def get_cfn_param_file(self, template=None):
 
-        self.cfn_config_file_basename = os.path.basename(template)
-        self.cfn_config_file = os.path.join(self.cfn_config_file_dir, self.cfn_config_file_basename)
+        self.cfn_param_file_basename = os.path.basename(template)
+        self.cfn_param_file = os.path.join(self.cfn_param_file_dir, self.cfn_param_file_basename)
 
-        return self.cfn_config_file
+        return self.cfn_param_file
 
-    def rm_cfnconfig_file(self, cfn_config_file=None):
+    def rm_cfn_param_file(self, cfn_param_file=None):
 
-        if cfn_config_file is None:
-            cfn_config_file = self.cfn_config_file
+        if cfn_param_file is None:
+            cfn_param_file = self.cfn_param_file
 
-        print('Removing incomplete config file {0}'.format(cfn_config_file))
+        print('Removing incomplete parameters file {0}'.format(cfn_param_file))
         try:
-            os.remove(cfn_config_file)
+            os.remove(cfn_param_file)
         except Exception as e:
             raise e
 
         sys.exit(1)
 
-    def set_vpc_cfn_config_file(self, cfn_config_file='NULL'):
+    def set_vpc_cfn_param_file(self, cfn_param_file='NULL'):
 
-        if cfn_config_file == 'NULL':
-            cfn_config_file = self.cfn_config_file
+        if cfn_param_file == 'NULL':
+            cfn_param_file = self.cfn_param_file
 
         print('Getting VPC info...')
 
@@ -993,47 +1022,48 @@ class CfnControl:
         cli_val = raw_input("Select VPC: ")
         if cli_val not in vpc_ids:
             print("Valid VPC required.  Exiting... ")
-            self.rm_cfnconfig_file(cfn_config_file)
+            self.rm_cfn_param_file(cfn_param_file)
             return
 
         self.vpc_id = cli_val
 
         return self.vpc_id
 
-    def build_cfn_config(self, stack_name, template, verbose=False):
+    def build_cfn_param(self, stack_name, template, verbose=False):
 
         template_url = None
         template_body = None
 
         value_already_set = list()
-        cfn_config_file_to_write = dict()
-        cfn_config_file = self.get_cfnconfig_file(template + "." + stack_name)
+        cfn_param_file_to_write = dict()
+        cfn_param_file = self.get_cfn_param_file(template + "." + stack_name)
         found_required_val = False
 
-        if not os.path.isfile(cfn_config_file):
-            # create config file and dir
-            print("Creating config file {0}".format(cfn_config_file))
-            if not os.path.isdir(self.cfn_config_file_dir):
-                print("Creating config directory {0}".format(self.cfn_config_file_dir))
+        if not os.path.isfile(cfn_param_file):
+            # create parameters file and dir
+            print("Creating parameters file {0}".format(cfn_param_file))
+            if not os.path.isdir(self.cfn_param_file_dir):
+                print("Creating parameters directory {0}".format(self.cfn_param_file_dir))
                 try:
-                    os.makedirs(self.cfn_config_file_dir)
+                    os.makedirs(self.cfn_param_file_dir)
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         raise
-        elif os.path.isfile(cfn_config_file):
-            cli_val = raw_input("Config file {0} already exists, use this file [y/N]:  ".format(cfn_config_file))
+        elif os.path.isfile(cfn_param_file):
+            cli_val = raw_input("Parameters file {0} already exists, use this file [y/N]:  ".format(cfn_param_file))
 
             if not cli_val:
                 cli_val = 'n'
 
             if cli_val.lower().startswith("n"):
                 try:
-                    os.remove(cfn_config_file)
-                    self.build_cfn_config(stack_name, template, verbose=verbose)
+                    os.remove(cfn_param_file)
+                    self.build_cfn_param(stack_name, template, verbose=verbose)
                     return
                 except Exception as e:
                     raise ValueError(e)
             else:
+                # params file already build, nothing left to do here
                 return
 
         if self.url_check(template):
@@ -1117,7 +1147,7 @@ class CfnControl:
                     if json_content['Parameters'][p]['Type'] == 'AWS::EC2::KeyPair::KeyName':
                         if not self.key_pairs:
                             print('No EC2 keys found in {0}'.format(self.region))
-                            self.rm_cfnconfig_file(cfn_config_file)
+                            self.rm_cfn_param_file(cfn_param_file)
                             return
                         print('EC2 keys found in {0}:'.format(self.region))
                         #print('  {0}'.format(', '.join(self.key_pairs)))
@@ -1126,7 +1156,7 @@ class CfnControl:
                         cli_val = raw_input("Select EC2 Key: ")
                         if cli_val not in self.key_pairs:
                             print("Valid EC2 Key Pair required.  Exiting... ")
-                            self.rm_cfnconfig_file(cfn_config_file)
+                            self.rm_cfn_param_file(cfn_param_file)
                             return
                 except Exception as e:
                     print(e)
@@ -1136,11 +1166,11 @@ class CfnControl:
                 try:
                     if json_content['Parameters'][p]['Type'] == 'AWS::EC2::VPC::Id':
                         if self.vpc_id is None:
-                            self.vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
-                            cfn_config_file_to_write[p] = self.vpc_id
+                            self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
+                            cfn_param_file_to_write[p] = self.vpc_id
                             value_already_set.append(p)
                         else:
-                            cfn_config_file_to_write[p] = self.vpc_id
+                            cfn_param_file_to_write[p] = self.vpc_id
                             value_already_set.append(p)
 
                 except Exception as e:
@@ -1153,7 +1183,7 @@ class CfnControl:
 
                         if self.vpc_id is None:
                             try:
-                                self.vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
+                                self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
                             except Exception as e:
                                 raise ValueError(e)
 
@@ -1171,7 +1201,7 @@ class CfnControl:
                         cli_val = raw_input("Select subnet: ")
                         if cli_val not in subnet_ids:
                             print("Valid subnet ID required.  Exiting... ")
-                            self.rm_cfnconfig_file(cfn_config_file)
+                            self.rm_cfn_param_file(cfn_param_file)
                             return
                 except Exception as e:
                     pass
@@ -1182,7 +1212,7 @@ class CfnControl:
 
                         if self.vpc_id is None:
                             try:
-                                self.vpc_id = self.set_vpc_cfn_config_file(cfn_config_file)
+                                self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
                             except Exception as e:
                                 raise ValueError(e)
 
@@ -1197,7 +1227,7 @@ class CfnControl:
                         cli_val = raw_input('Select security group: ')
                         if cli_val not in security_group_ids:
                             print("Valid security group required.  Exiting... ")
-                            self.rm_cfnconfig_file(cfn_config_file)
+                            self.rm_cfn_param_file(cfn_param_file)
                 except Exception as e:
                     print(e)
 
@@ -1225,7 +1255,7 @@ class CfnControl:
 
                 try:
                     if cli_val is None and default_val is None and json_content['Parameters'][p]['ConstraintDescription']:
-                        print('Parameter "{0}" is required, but can be changed in config file'.format(p))
+                        print('Parameter "{0}" is required, but can be changed in the cfnctl parameters file'.format(p))
                         cli_val = raw_input('Enter {0}: '.format(p))
                         if cli_val == "":
                             cli_val = "<VALUE_NEEDED>"
@@ -1236,23 +1266,23 @@ class CfnControl:
                 try:
                     if p not in value_already_set:
                         if cli_val is not None:
-                            cfn_config_file_to_write[p] = cli_val
+                            cfn_param_file_to_write[p] = cli_val
                             value_already_set.append(p)
                         elif default_val is not None:
-                            cfn_config_file_to_write[p] = default_val
+                            cfn_param_file_to_write[p] = default_val
                             value_already_set.append(p)
                         else:
-                            cfn_config_file_to_write[p] = ""
+                            cfn_param_file_to_write[p] = ""
                             value_already_set.append(p)
                 except KeyError:
                     pass
 
         if found_required_val:
-            print('Some values are still needed, replace "<VALUE_NEEDED>" in {0}'.format(cfn_config_file))
+            print('Some values are still needed, replace "<VALUE_NEEDED>" in {0}'.format(cfn_param_file))
 
         # Debug
-        # print (sorted(cfn_config_file_to_write.items()))
-        with open(self.cfn_config_file, 'w') as cfn_out_file:
+        # print (sorted(cfn_param_file_to_write.items()))
+        with open(self.cfn_param_file, 'w') as cfn_out_file:
 
             cfn_out_file.write('[AWS-Config]\n')
             if template_url is not None:
@@ -1263,12 +1293,12 @@ class CfnControl:
 
             cfn_out_file.write('[Paramters]\n')
 
-            for k, v in sorted(cfn_config_file_to_write.items()):
+            for k, v in sorted(cfn_param_file_to_write.items()):
                 cfn_out_file.write('{0:<35} = {1}\n'.format(k, v))
 
         print("Done building cfnctl parameters file, includes template location")
 
-        return cfn_config_file
+        return cfn_param_file
 
     def get_instance_info(self, instance_state=None):
 

@@ -37,7 +37,8 @@ def arg_parse():
     opt_group.add_argument('-r', dest='region', required=False, help="Region name")
     opt_group.add_argument('-s', dest='stack_name', required=False, help="Stack name")
     opt_group.add_argument('-t', dest='template', required=False, help='CFN Template from local file or URL')
-    #opt_group.add_argument('-v', dest='verbose_config_file', required=False, help='Verbose config file', action='store_true')
+    opt_group.add_argument('-y', dest='no_prompt', required=False, help='On interactive question, force yes', action='store_true')
+    #opt_group.add_argument('-v', dest='verbose_param_file', required=False, help='Verbose config file', action='store_true')
 
     if len(sys.argv[1:])==0:
         parser.print_help()
@@ -61,7 +62,8 @@ def main():
     region = args.region
     stack_name = args.stack_name
     template = args.template
-    ##verbose_config_file = args.verbose_config_file
+    no_prompt = args.no_prompt
+    ##verbose_param_file = args.verbose_param_file
 
     errmsg_cr = "Creating a stack requires create flag (-c), stack name (-s), and for new stacks " \
                 "the template (-t) flag or for configured stacks, the -f flag for parameters file, " \
@@ -138,7 +140,7 @@ def main():
         if not stack_name:
             errmsg = "Must specify a stack to delete (-s)"
             raise ValueError(errmsg)
-        client.del_stack(stack_name)
+        client.del_stack(stack_name, no_prompt=no_prompt)
     elif param_file or stack_name:
         raise ValueError(errmsg_cr)
     else:
