@@ -547,7 +547,7 @@ class CfnControl:
             else:
                 raise ValueError(e)
 
-        print("Trying to launch stack {}".format(stack_name))
+        print("Trying to launch {}".format(stack_name))
 
         try:
 
@@ -619,6 +619,27 @@ class CfnControl:
         self.get_stack_info(stack_name=stack_name)
 
         return response
+
+    def del_stack(self,stack_name):
+
+        try:
+            stk_response = self.client_cfn.describe_stacks(StackName=stack_name)
+        except ClientError as e:
+            raise ValueError(e)
+
+        print('Deleting {}'.format(stack_name))
+        try:
+            response = self.client_cfn.delete_stack(StackName=stack_name)
+        except Exception as e:
+            raise ValueError(e)
+
+        sc = response['ResponseMetadata']['HTTPStatusCode']
+
+        if sc != 200:
+            errmsg = 'Problem deleting stack, status code {}'.format(sc)
+            raise ValueError(errmsg)
+
+        return
 
     def ls_stacks(self, stack_name=None, show_deleted=False):
         """
@@ -819,7 +840,6 @@ class CfnControl:
                 allocation_id = self.get_net_alloc_id(stack_eip)
                 ip_addr = stack_eip
             else:
-                allocation = dict()
                 allocation = self.client_ec2.allocate_address(Domain='vpc')
                 allocation_id = allocation['AllocationId']
                 ip_addr = allocation['PublicIp']
@@ -909,11 +929,10 @@ class CfnControl:
 
         path = urlparse.urlparse(url).path
 
-        path_l = list()
         path_l = path.split('/')
 
         bucket = path_l[1]
-        key = ('/').join(path_l[2:])
+        key = '/'.join(path_l[2:])
 
         return bucket, key
 
@@ -924,7 +943,10 @@ class CfnControl:
 
         return self.cfn_config_file
 
-    def rm_cfnconfig_file(self, cfn_config_file):
+    def rm_cfnconfig_file(self, cfn_config_file=None):
+
+        if cfn_config_file is None:
+            cfn_config_file = self.cfn_config_file
 
         print('Removing incomplete config file {0}'.format(cfn_config_file))
         try:
@@ -1002,8 +1024,6 @@ class CfnControl:
             else:
                 return
 
-        template_content = None
-
         if self.url_check(template):
             template_url = template
 
@@ -1073,8 +1093,9 @@ class CfnControl:
 
             for p in sorted(json_content['Parameters']):
 
-                default_val = 'NULL'
-                cli_val = 'NULL'
+                default_val = None
+                cli_val = None
+                param_type = None
 
                 # Debug
                 #print('setting {0}'.format(p))
@@ -1140,7 +1161,7 @@ class CfnControl:
                             print("Valid subnet ID required.  Exiting... ")
                             self.rm_cfnconfig_file(cfn_config_file)
                             return
-                except:
+                except Exception as e:
                     pass
 
                 # get and set AWS::EC2::SecurityGroup::Id
@@ -1174,7 +1195,24 @@ class CfnControl:
                     pass
 
                 try:
-                    if cli_val == 'NULL' and default_val == 'NULL' and json_content['Parameters'][p]['ConstraintDescription']:
+                    param_type = json_content['Parameters'][p]['Type']
+                except KeyError:
+                    pass
+
+                if cli_val is None and p not in value_already_set:
+                    try:
+                        if default_val is None:
+                            default_val = ""
+                        cli_val = raw_input('{0} [{1}]: '.format(p, default_val))
+
+                        if cli_val == "":
+                            cli_val = default_val
+
+                    except Exception as e:
+                        print(e)
+
+                try:
+                    if cli_val is None and default_val is None and json_content['Parameters'][p]['ConstraintDescription']:
                         print('Parameter "{0}" is required, but can be changed in config file'.format(p))
                         cli_val = raw_input('Enter {0}: '.format(p))
                         if cli_val == "":
@@ -1185,10 +1223,10 @@ class CfnControl:
 
                 try:
                     if p not in value_already_set:
-                        if cli_val is not 'NULL':
+                        if cli_val is not None:
                             cfn_config_file_to_write[p] = cli_val
                             value_already_set.append(p)
-                        elif default_val is not 'NULL':
+                        elif default_val is not None:
                             cfn_config_file_to_write[p] = default_val
                             value_already_set.append(p)
                         else:
@@ -1216,7 +1254,7 @@ class CfnControl:
             for k, v in sorted(cfn_config_file_to_write.items()):
                 cfn_out_file.write('{0:<35} = {1}\n'.format(k, v))
 
-        print("Done building cfnctl config file.")
+        print("Done building cfnctl parameters file, includes template location")
 
         return cfn_config_file
 
