@@ -63,8 +63,9 @@ def main():
     template = args.template
     ##verbose_config_file = args.verbose_config_file
 
-    errmsg_cr = "Creating a stack requires create flag (-c), and both the stack name (-s), and for new stacks " \
-                "the template (-t) flag"
+    errmsg_cr = "Creating a stack requires create flag (-c), stack name (-s), and for new stacks " \
+                "the template (-t) flag or for configured stacks, the -f flag for parameters file, " \
+                "which includes the template location"
 
     aws_profile = 'NULL'
     if args.aws_profile:
@@ -94,7 +95,7 @@ def main():
             for stack, i in sorted(stacks.items()):
                 print(' {}'.format(stack))
     elif create_stack:
-        if stack_name and not template:
+        if stack_name and param_file and not template:
             try:
                 response = client.cr_stack(stack_name, param_file, set_rollback=rollback)
             except Exception as e:

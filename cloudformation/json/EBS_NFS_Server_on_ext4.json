@@ -49,7 +49,6 @@
       "Properties": {
         "InstanceType"        : { "Ref" : "NFSInstanceType" },
         "SubnetId"            : { "Ref" : "Subnet" },
-        "AssociatePublicIpAddress" : { "Ref" : "UsePublicIp" },
         "ImageId"             : { "Fn::FindInMap" :  [ "AWSRegionAMI", { "Ref" : "AWS::Region" } , "HVM64" ] },
         "KeyName"             : { "Ref": "KeyName"  },
         "SecurityGroupIds"    : [ { "Ref": "NFSSecurityGroup" },
