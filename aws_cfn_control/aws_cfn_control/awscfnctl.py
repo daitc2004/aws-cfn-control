@@ -560,10 +560,16 @@ class CfnControl:
                     TimeoutInMinutes=600,
                     Capabilities=['CAPABILITY_IAM'],
                     OnFailure=set_rollback,
-                    Tags=[ {
-                        'Key': 'Name',
-                        'Value': stack_name
-                    }, ]
+                    Tags=[
+                           {
+                               'Key': 'Name',
+                               'Value': stack_name
+                           },
+                           {
+                               'Key': 'cfnctl_template',
+                               'Value': os.path.basename(cfn_config_file)
+                           },
+                    ]
                 )
 
             elif self.template_body:
@@ -575,10 +581,16 @@ class CfnControl:
                     TimeoutInMinutes=600,
                     Capabilities=['CAPABILITY_IAM'],
                     OnFailure=set_rollback,
-                    Tags=[ {
+                    Tags=[
+                        {
                             'Key': 'Name',
                             'Value': stack_name
-                        }, ]
+                        },
+                        {
+                            'Key': 'cfnctl_template',
+                            'Value': os.path.basename(cfn_config_file)
+                        },
+                    ]
                 )
 
         except ClientError as e:
