@@ -611,11 +611,11 @@ class CfnControl:
 
         try:
             eip = stk_output['ElasticIP']
+            self.set_elastic_ip(stack_eip=eip)
         except KeyError:
-            raise
+            pass
 
         self.stack_name = stack_name
-        self.set_elastic_ip(stack_eip=eip)
         self.get_stack_info(stack_name=stack_name)
 
         return response
