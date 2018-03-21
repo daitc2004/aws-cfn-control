@@ -20,6 +20,7 @@ import errno
 import boto3
 import operator
 import urlparse
+import textwrap
 import subprocess
 from ConfigParser import SafeConfigParser
 from botocore.exceptions import ClientError
@@ -490,7 +491,7 @@ class CfnControl:
         except:
             return False
 
-    def cr_stack(self, stack_name, cfn_param_file, set_rollback='ROLLBACK', template=None):
+    def cr_stack(self, stack_name, cfn_param_file, verbose=False, set_rollback='ROLLBACK', template=None):
         """
         Three steps:
 
@@ -500,6 +501,7 @@ class CfnControl:
 
         :param stack_name:
         :param cfn_param_file:
+        :param verbose:
         :param set_rollback:
         :param template:
         :return:
@@ -519,12 +521,12 @@ class CfnControl:
                 self.template_url = template
                 self.validate_cfn_template(template_url=self.template_url)
                 if not cfn_param_file:
-                    cfn_param_file = self.build_cfn_param(stack_name, self.template_url)
+                    cfn_param_file = self.build_cfn_param(stack_name, self.template_url, verbose=verbose)
             else:
                 template_path = os.path.abspath(template)
                 self.validate_cfn_template(template_body=template_path)
                 if not cfn_param_file:
-                    cfn_param_file = self.build_cfn_param(stack_name, template_path)
+                    cfn_param_file = self.build_cfn_param(stack_name, template_path, verbose=verbose)
                 self.template_body = self.parse_cfn_template(template_path)
 
         cfn_params = self.read_cfn_param_file(cfn_param_file)
@@ -1088,194 +1090,183 @@ class CfnControl:
 
         json_content = json.loads(template_content)
 
-        if verbose:
-            pass
+        for p in sorted(json_content['Parameters']):
 
-        # cfn_out_file.write('[Paramters]\n')
-        #    for p in sorted(json_content['Parameters']):
+            default_val = None
+            cli_val = None
+            param_type = None
 
-        #        print(json_content['Parameters'][p]['Type'])
+            # Debug
+            #print('setting {0}'.format(p))
 
-        #        default_val = 'NULL'
+            # get and set AWS::EC2::KeyPair::KeyName
+            try:
+                if json_content['Parameters'][p]['Type'] == 'AWS::EC2::KeyPair::KeyName':
+                    if not self.key_pairs:
+                        print('No EC2 keys found in {0}'.format(self.region))
+                        self.rm_cfn_param_file(cfn_param_file)
+                        return
+                    print('EC2 keys found in {0}:'.format(self.region))
+                    #print('  {0}'.format(', '.join(self.key_pairs)))
+                    for k in self.key_pairs:
+                        print('  {0}'.format(k))
+                    cli_val = raw_input("Select EC2 Key: ")
+                    if cli_val not in self.key_pairs:
+                        print("Valid EC2 Key Pair required.  Exiting... ")
+                        self.rm_cfn_param_file(cfn_param_file)
+                        return
+            except Exception as e:
+                print(e)
 
-        #        cfn_out_file.write('# {0}\n'.format(p))
+            # get and set AWS::EC2::VPC::Id
 
-        #        try:
-        #            cfn_out_file.write('# Description: {0}\n'.format(json_content['Parameters'][p]['Description']))
-        #        except KeyError:
-        #            pass
+            try:
+                if json_content['Parameters'][p]['Type'] == 'AWS::EC2::VPC::Id':
+                    if self.vpc_id is None:
+                        self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
+                        cfn_param_file_to_write[p] = self.vpc_id
+                        value_already_set.append(p)
+                    else:
+                        cfn_param_file_to_write[p] = self.vpc_id
+                        value_already_set.append(p)
 
-        #        try:
-        #            cfn_out_file.write('# Type: {0}\n'.format(json_content['Parameters'][p]['Type']))
-        #        except KeyError:
-        #            pass
+            except Exception as e:
+                print(e)
 
-        #        try:
-        #            default_val = json_content['Parameters'][p]['Default']
-        #            cfn_out_file.write('# Default: {0}\n'.format(json_content['Parameters'][p]['Default']))
-        #        except KeyError:
-        #            pass
+            # get and set List<AWS::EC2::Subnet::Id>
+            try:
+                if json_content['Parameters'][p]['Type'] == 'List<AWS::EC2::Subnet::Id>' or \
+                                json_content['Parameters'][p]['Type'] == 'AWS::EC2::Subnet::Id':
 
-        #        try:
-        #            cfn_out_file.write('# ConstraintDescription: {0}\n'.format(json_content['Parameters'][p]['ConstraintDescription']))
-        #        except KeyError:
-        #            pass
-
-        #        try:
-        #            cfn_out_file.write('# AllowedValues: {0}\n'.format(', '.join((json_content['Parameters'][p]['AllowedValues']))))
-        #        except KeyError:
-        #            pass
-
-        #        if default_val is not 'NULL':
-        #            cfn_out_file.write('{0} = {1}\n'.format(p, default_val))
-        #        else:
-        #            cfn_out_file.write('{0} = \n'.format(p))
-        #        cfn_out_file.write("\n")
-        else:
-
-            for p in sorted(json_content['Parameters']):
-
-                default_val = None
-                cli_val = None
-                param_type = None
-
-                # Debug
-                #print('setting {0}'.format(p))
-
-                # get and set AWS::EC2::KeyPair::KeyName
-                try:
-                    if json_content['Parameters'][p]['Type'] == 'AWS::EC2::KeyPair::KeyName':
-                        if not self.key_pairs:
-                            print('No EC2 keys found in {0}'.format(self.region))
-                            self.rm_cfn_param_file(cfn_param_file)
-                            return
-                        print('EC2 keys found in {0}:'.format(self.region))
-                        #print('  {0}'.format(', '.join(self.key_pairs)))
-                        for k in self.key_pairs:
-                            print('  {0}'.format(k))
-                        cli_val = raw_input("Select EC2 Key: ")
-                        if cli_val not in self.key_pairs:
-                            print("Valid EC2 Key Pair required.  Exiting... ")
-                            self.rm_cfn_param_file(cfn_param_file)
-                            return
-                except Exception as e:
-                    print(e)
-
-                # get and set AWS::EC2::VPC::Id
-
-                try:
-                    if json_content['Parameters'][p]['Type'] == 'AWS::EC2::VPC::Id':
-                        if self.vpc_id is None:
+                    if self.vpc_id is None:
+                        try:
                             self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
-                            cfn_param_file_to_write[p] = self.vpc_id
-                            value_already_set.append(p)
-                        else:
-                            cfn_param_file_to_write[p] = self.vpc_id
-                            value_already_set.append(p)
+                        except Exception as e:
+                            raise ValueError(e)
+
+                    print('Getting subnets for {0} ...'.format(self.vpc_id))
+
+                    subnet_ids = list()
+                    all_subnets = self.get_subnets_from_vpc(self.vpc_id)
+                    for subnet_id, subnet_info in all_subnets.items():
+                        subnet_ids.append(subnet_id)
+                        try:
+                            print('  {0} | {1} | {2}'.format(subnet_id, subnet_info['AvailabilityZone'],
+                                                             subnet_info['Tag_Name'][0:20]))
+                        except KeyError:
+                            print('  {0} | {1}'.format(subnet_id, subnet_info['AvailabilityZone']))
+                    cli_val = raw_input("Select subnet: ")
+                    if cli_val not in subnet_ids:
+                        print("Valid subnet ID required.  Exiting... ")
+                        self.rm_cfn_param_file(cfn_param_file)
+                        return
+            except Exception as e:
+                pass
+
+            # get and set AWS::EC2::SecurityGroup::Id
+            try:
+                if json_content['Parameters'][p]['Type'] == 'AWS::EC2::SecurityGroup::Id':
+
+                    if self.vpc_id is None:
+                        try:
+                            self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
+                        except Exception as e:
+                            raise ValueError(e)
+
+                    print('Getting security groups for {0} ...'.format(self.vpc_id))
+
+                    security_group_ids = list()
+                    all_security_group_info = self.get_security_groups(self.vpc_id)
+
+                    for r in all_security_group_info:
+                        security_group_ids.append(r['GroupId'])
+                        print('  {0} | {1}'.format(r['GroupId'], r['GroupName'][0:20]))
+                    cli_val = raw_input('Select security group: ')
+                    if cli_val not in security_group_ids:
+                        print("Valid security group required.  Exiting... ")
+                        self.rm_cfn_param_file(cfn_param_file)
+            except Exception as e:
+                print(e)
+
+            try:
+                default_val = json_content['Parameters'][p]['Default']
+            except KeyError:
+                pass
+
+            try:
+                param_type = json_content['Parameters'][p]['Type']
+            except KeyError:
+                pass
+
+            if cli_val is None and p not in value_already_set:
+                try:
+                    if default_val is None:
+                        default_val = ""
+
+                    if verbose:
+                        print
+                        print('# Parameter: {}'.format(p))
+
+                        try:
+                            print('# Description: {0}'.format(json_content['Parameters'][p]['Description']))
+                        except KeyError:
+                            pass
+
+                        try:
+                            print('# Type: {0}'.format(json_content['Parameters'][p]['Type']))
+                        except KeyError:
+                            pass
+
+                        print('# Default: {0}'.format(default_val))
+
+                        try:
+                            print('# ConstraintDescription: {0}'.format(json_content['Parameters'][p]['ConstraintDescription']))
+                        except KeyError:
+                            pass
+
+                        try:
+                            space = 16 * " "
+                            a_val = ' '.join((json_content['Parameters'][p]['AllowedValues']))
+                            a_val_formatted = textwrap.wrap(a_val, width=80, replace_whitespace=False)
+                            a_val_formatted_0 = a_val_formatted[0]
+                            a_val_formatted_1 = '\n#{0}'.join(a_val_formatted[1:]).format(space)
+
+                            print('# AllowedValues: {0}\n#{1}{2}'.format(a_val_formatted_0, space, a_val_formatted_1))
+
+                        except KeyError:
+                            pass
+
+                    cli_val = raw_input('{0} [{1}]: '.format(p, default_val))
+
+                    if cli_val == "":
+                        cli_val = default_val
 
                 except Exception as e:
                     print(e)
 
-                # get and set List<AWS::EC2::Subnet::Id>
-                try:
-                    if json_content['Parameters'][p]['Type'] == 'List<AWS::EC2::Subnet::Id>' or \
-                                    json_content['Parameters'][p]['Type'] == 'AWS::EC2::Subnet::Id':
+            try:
+                if cli_val is None and default_val is None and json_content['Parameters'][p]['ConstraintDescription']:
+                    print('Parameter "{0}" is required, but can be changed in the cfnctl parameters file'.format(p))
+                    cli_val = raw_input('Enter {0}: '.format(p))
+                    if cli_val == "":
+                        cli_val = "<VALUE_NEEDED>"
+                        found_required_val = True
+            except:
+                pass
 
-                        if self.vpc_id is None:
-                            try:
-                                self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
-                            except Exception as e:
-                                raise ValueError(e)
-
-                        print('Getting subnets for {0} ...'.format(self.vpc_id))
-
-                        subnet_ids = list()
-                        all_subnets = self.get_subnets_from_vpc(self.vpc_id)
-                        for subnet_id, subnet_info in all_subnets.items():
-                            subnet_ids.append(subnet_id)
-                            try:
-                                print('  {0} | {1} | {2}'.format(subnet_id, subnet_info['AvailabilityZone'],
-                                                                 subnet_info['Tag_Name'][0:20]))
-                            except KeyError:
-                                print('  {0} | {1}'.format(subnet_id, subnet_info['AvailabilityZone']))
-                        cli_val = raw_input("Select subnet: ")
-                        if cli_val not in subnet_ids:
-                            print("Valid subnet ID required.  Exiting... ")
-                            self.rm_cfn_param_file(cfn_param_file)
-                            return
-                except Exception as e:
-                    pass
-
-                # get and set AWS::EC2::SecurityGroup::Id
-                try:
-                    if json_content['Parameters'][p]['Type'] == 'AWS::EC2::SecurityGroup::Id':
-
-                        if self.vpc_id is None:
-                            try:
-                                self.vpc_id = self.set_vpc_cfn_param_file(cfn_param_file)
-                            except Exception as e:
-                                raise ValueError(e)
-
-                        print('Getting security groups for {0} ...'.format(self.vpc_id))
-
-                        security_group_ids = list()
-                        all_security_group_info = self.get_security_groups(self.vpc_id)
-
-                        for r in all_security_group_info:
-                            security_group_ids.append(r['GroupId'])
-                            print('  {0} | {1}'.format(r['GroupId'], r['GroupName'][0:20]))
-                        cli_val = raw_input('Select security group: ')
-                        if cli_val not in security_group_ids:
-                            print("Valid security group required.  Exiting... ")
-                            self.rm_cfn_param_file(cfn_param_file)
-                except Exception as e:
-                    print(e)
-
-                try:
-                    default_val = json_content['Parameters'][p]['Default']
-                except KeyError:
-                    pass
-
-                try:
-                    param_type = json_content['Parameters'][p]['Type']
-                except KeyError:
-                    pass
-
-                if cli_val is None and p not in value_already_set:
-                    try:
-                        if default_val is None:
-                            default_val = ""
-                        cli_val = raw_input('{0} [{1}]: '.format(p, default_val))
-
-                        if cli_val == "":
-                            cli_val = default_val
-
-                    except Exception as e:
-                        print(e)
-
-                try:
-                    if cli_val is None and default_val is None and json_content['Parameters'][p]['ConstraintDescription']:
-                        print('Parameter "{0}" is required, but can be changed in the cfnctl parameters file'.format(p))
-                        cli_val = raw_input('Enter {0}: '.format(p))
-                        if cli_val == "":
-                            cli_val = "<VALUE_NEEDED>"
-                            found_required_val = True
-                except:
-                    pass
-
-                try:
-                    if p not in value_already_set:
-                        if cli_val is not None:
-                            cfn_param_file_to_write[p] = cli_val
-                            value_already_set.append(p)
-                        elif default_val is not None:
-                            cfn_param_file_to_write[p] = default_val
-                            value_already_set.append(p)
-                        else:
-                            cfn_param_file_to_write[p] = ""
-                            value_already_set.append(p)
-                except KeyError:
-                    pass
+            try:
+                if p not in value_already_set:
+                    if cli_val is not None:
+                        cfn_param_file_to_write[p] = cli_val
+                        value_already_set.append(p)
+                    elif default_val is not None:
+                        cfn_param_file_to_write[p] = default_val
+                        value_already_set.append(p)
+                    else:
+                        cfn_param_file_to_write[p] = ""
+                        value_already_set.append(p)
+            except KeyError:
+                pass
 
         if found_required_val:
             print('Some values are still needed, replace "<VALUE_NEEDED>" in {0}'.format(cfn_param_file))
