@@ -818,41 +818,6 @@ class CfnControl:
                     return s['ResourceStatus']
             time.sleep(1)
 
-    def stack_status_old(self, stack_name=None):
-
-        if stack_name is None:
-            stack_name = self.stack_name
-
-        res_id_old = 'NULL'
-        res_status_old = 'NULL'
-
-        while True:
-
-            response = self.client_cfn.describe_stack_events(StackName=stack_name)
-
-            r = response['StackEvents'][0]
-
-            res_id_new = r['LogicalResourceId']
-            res_status_new = r['ResourceStatus']
-
-            if res_id_new == res_id_old and res_status_new == res_status_old:
-                pass
-            else:
-                print("{0:<30} :  {1:<50}".format(res_id_new, res_status_new))
-                res_id_old = r['LogicalResourceId']
-                res_status_old = r['ResourceStatus']
-
-            stack_return_list = [
-                'CREATE_COMPLETE',
-                'ROLLBACK_COMPLETE',
-                'CREATE_FAILED'
-            ]
-
-            if r['LogicalResourceId'] == stack_name and r['ResourceStatus'] in stack_return_list:
-                return r['ResourceStatus']
-
-            time.sleep(1)
-
     def has_elastic_ip(self, inst_arg=None):
 
         if not self.instances and inst_arg is None:
