@@ -776,7 +776,49 @@ class CfnControl:
 
         return attach_resp
 
+    def get_stack_events(self, stack_name):
+
+        try:
+            paginator = self.client_cfn.get_paginator('describe_stack_events')
+            pages = paginator.paginate(StackName=stack_name, PaginationConfig={'MaxItems': 100})
+            return next(iter(pages))["StackEvents"]
+        except Exception as e:
+            raise ValueError(e)
+
     def stack_status(self, stack_name=None):
+
+        if stack_name is None:
+            stack_name = self.stack_name
+
+        all_events = list()
+        events = True
+
+        stack_return_list = [
+            'CREATE_COMPLETE',
+            'ROLLBACK_COMPLETE',
+            'CREATE_FAILED'
+        ]
+
+        while events:
+            stk_status = self.get_stack_events(stack_name)
+
+            for s in reversed(stk_status):
+                event_id = s['EventId']
+                if event_id not in all_events:
+                    all_events.append(event_id)
+                    try:
+                        print('{0:<30} :  {1:<25} :  {2}'.format(s['LogicalResourceId'], s['ResourceStatus'], s['ResourceStatusReason']))
+                    except KeyError:
+                        print('{0:<30} :  {1:<25}'.format(s['LogicalResourceId'], s['ResourceStatus']))
+                    except Exception as e:
+                        raise ValueError(e)
+
+                if s['LogicalResourceId'] == stack_name and s['ResourceStatus'] in stack_return_list:
+                    events = False
+                    return s['ResourceStatus']
+            time.sleep(1)
+
+    def stack_status_old(self, stack_name=None):
 
         if stack_name is None:
             stack_name = self.stack_name
@@ -962,7 +1004,7 @@ class CfnControl:
                     print('{0:<35} = {1:<30}'.format(o['OutputKey'], o['OutputValue']))
             except Exception as e:
                 print("No Outputs found")
-                raise ValueError(e)
+                print ValueError(e)
 
         print("")
         return
