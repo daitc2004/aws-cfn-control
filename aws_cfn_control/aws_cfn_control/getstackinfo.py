@@ -14,10 +14,12 @@
 #
 
 import sys
+import time
 import argparse
 from aws_cfn_control import CfnControl
 
 progname = 'getstackinfo'
+
 
 def arg_parse():
 
@@ -31,6 +33,17 @@ def arg_parse():
 
     return parser.parse_args()
 
+
+def get_stack_events(client, stack_name):
+
+    try:
+        paginator = client.get_paginator('describe_stack_events')
+        pages = paginator.paginate(StackName=stack_name, PaginationConfig={'MaxItems': 100})
+        return next(iter(pages))["StackEvents"]
+    except Exception as e:
+        raise ValueError(e)
+
+
 def main():
 
     rc = 0
@@ -39,8 +52,31 @@ def main():
     region = args.region
     stack_name = args.stack_name
 
+
     client = CfnControl(region=region)
     client.get_stack_info(stack_name=stack_name)
+
+    all_events = list()
+
+    events = True
+
+    while events:
+        stk_status = get_stack_events(client.client_cfn, stack_name)
+
+        for s in reversed(stk_status):
+            event_id = s['EventId']
+            if event_id not in all_events:
+                all_events.append(event_id)
+                try:
+                    print('{0} {1} {2}'.format(s['LogicalResourceId'], s['ResourceStatus'], s['ResourceStatusReason']))
+                except KeyError:
+                    print('{0} {1}'.format(s['LogicalResourceId'], s['ResourceStatus']))
+                except Exception as e:
+                    raise ValueError(e)
+
+                if s['LogicalResourceId'] == stack_name and s['ResourceStatus'] == 'ROLLBACK_COMPLETE':
+                    events = False
+        time.sleep(1)
 
     return rc
 
