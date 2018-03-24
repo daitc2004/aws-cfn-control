@@ -129,7 +129,8 @@ def main():
                     'Parameters': ["VPCId",
                                    "Subnet",
                                    "SecurityGroups",
-                                   "CreateElasticIP"
+                                   "CreateElasticIP",
+                                   "CreatePlacementGroup"
                                    ]
                 },
                 {
@@ -166,6 +167,7 @@ def main():
                 'Subnet': {'default': 'Subnet ID'},
                 'SecurityGroups': {'default': 'Security Groups'},
                 'CreateElasticIP': {'default': 'Create and Elaastic IP'},
+                'CreatePlacementGroup': {'default': 'Create Placement Group'},
                 'ASG01ClusterSize': {'default': 'Initial ASG 01 cluster size'},
                 'ASG01MaxClusterSize': {'default': 'Max ASG 01 cluster size'},
                 'ASG01MinClusterSize': {'default': 'Min ASG 01 cluster size'},
@@ -313,6 +315,18 @@ def main():
         'CreateElasticIP',
         Type="String",
         Description="Create an Elasic IP address, that will be assinged to an instance in the stack",
+        Default="True",
+        ConstraintDescription="True/False",
+        AllowedValues=[
+            "True",
+            "False"
+        ]
+    ))
+
+    CreatePlacementGroup = t.add_parameter(Parameter(
+        'CreatePlacementGroup',
+        Type="String",
+        Description="Should a Placement Group be created to be used all clusters",
         Default="True",
         ConstraintDescription="True/False",
         AllowedValues=[
@@ -470,8 +484,10 @@ def main():
 
     PlacementGroup = t.add_resource(ec2.PlacementGroup(
         'PlacementGroup',
-        Strategy="cluster"
+        Strategy='cluster',
+        Condition='create_placement_group'
     ))
+
 
     ASG01LaunchConfig = t.add_resource(LaunchConfiguration(
         'ASG01LaunchConfiguration',
@@ -533,6 +549,8 @@ def main():
                                 'else\n',
                                 '  my_inst_file={0}/my-instance-info.conf\n'.format(setup_tools_dir),
                                 'fi\n',
+                                '\n',
+                                'echo my_asg={0} >> $my_inst_file\n'.format(asg1),
                                 '\n',
                                 'source $my_inst_file\n',
                                 '\n',
@@ -618,7 +636,7 @@ def main():
                             content=Join('', [
                                 '#!/bin/bash -x\n',
                                 '\n',
-                                'total_instances=', Ref(ASG01ClusterSize), '\n',
+                                'total_instances=', Ref(ASG02ClusterSize), '\n',
                                 'function ck_for_yum_lck {\n',
                                 '  if [[ -f  /var/run/yum.pid ]]; then\n',
                                 '    sleep 30\n',
@@ -631,6 +649,8 @@ def main():
                                 'else\n',
                                 '  my_inst_file={0}/my-instance-info.conf\n'.format(setup_tools_dir),
                                 'fi\n',
+                                '\n',
+                                'echo my_asg={0} >> $my_inst_file\n'.format(asg2),
                                 '\n',
                                 'source $my_inst_file\n',
                                 '\n',
@@ -712,6 +732,12 @@ def main():
     t.add_condition("create_elastic_ip",
                     Equals(
                         Ref(CreateElasticIP),
+                        "True"
+                    ))
+
+    t.add_condition("create_placement_group",
+                    Equals(
+                        Ref(CreatePlacementGroup),
                         "True"
                     ))
 

@@ -9,6 +9,14 @@
         "True"
       ]
     },
+    "create_placement_group": {
+      "Fn::Equals": [
+        {
+          "Ref": "CreatePlacementGroup"
+        },
+        "True"
+      ]
+    },
     "use_public_ip": {
       "Fn::Equals": [
         {
@@ -442,7 +450,8 @@
             "VPCId",
             "Subnet",
             "SecurityGroups",
-            "CreateElasticIP"
+            "CreateElasticIP",
+            "CreatePlacementGroup"
           ]
         },
         {
@@ -505,6 +514,9 @@
         },
         "CreateElasticIP": {
           "default": "Create and Elaastic IP"
+        },
+        "CreatePlacementGroup": {
+          "default": "Create Placement Group"
         },
         "EC2KeyName": {
           "default": "EC2 Key Name"
@@ -646,6 +658,16 @@
       "ConstraintDescription": "True/False",
       "Default": "True",
       "Description": "Create an Elasic IP address, that will be assinged to an instance in the stack",
+      "Type": "String"
+    },
+    "CreatePlacementGroup": {
+      "AllowedValues": [
+        "True",
+        "False"
+      ],
+      "ConstraintDescription": "True/False",
+      "Default": "True",
+      "Description": "Should a Placement Group be created to be used all clusters",
       "Type": "String"
     },
     "EC2KeyName": {
@@ -1043,6 +1065,8 @@
                       "  my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
                       "fi\n",
                       "\n",
+                      "echo my_asg=AutoScalingGroup01 >> $my_inst_file\n",
+                      "\n",
                       "source $my_inst_file\n",
                       "\n",
                       "ck_for_yum_lck\n",
@@ -1319,6 +1343,8 @@
                 "\n",
                 "source $my_inst_file\n",
                 "\n",
+                "echo /usr/local/lib/python2.7/site-packages/ >> /usr/lib/python2.7/site-packages/usrlocal.pth\n",
+                "\n",
                 "asg_name=\"AutoScalingGroup01\"\n",
                 "init_cluster_size=\"",
                 {
@@ -1425,9 +1451,8 @@
                 "ck_for_yum_lck\n",
                 "fix_cfn_init\n",
                 "\n",
-                "\n",
                 "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc\n",
+                "yum install psmisc -y\n",
                 "yum update aws-cfn-bootstrap -y\n",
                 "\n",
                 "CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-init$\")\n",
@@ -1774,7 +1799,7 @@
                       "\n",
                       "total_instances=",
                       {
-                        "Ref": "ASG01ClusterSize"
+                        "Ref": "ASG02ClusterSize"
                       },
                       "\n",
                       "function ck_for_yum_lck {\n",
@@ -1789,6 +1814,8 @@
                       "else\n",
                       "  my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
                       "fi\n",
+                      "\n",
+                      "echo my_asg=AutoScalingGroup02 >> $my_inst_file\n",
                       "\n",
                       "source $my_inst_file\n",
                       "\n",
@@ -2066,6 +2093,8 @@
                 "\n",
                 "source $my_inst_file\n",
                 "\n",
+                "echo /usr/local/lib/python2.7/site-packages/ >> /usr/lib/python2.7/site-packages/usrlocal.pth\n",
+                "\n",
                 "asg_name=\"AutoScalingGroup02\"\n",
                 "init_cluster_size=\"",
                 {
@@ -2172,9 +2201,8 @@
                 "ck_for_yum_lck\n",
                 "fix_cfn_init\n",
                 "\n",
-                "\n",
                 "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc\n",
+                "yum install psmisc -y\n",
                 "yum update aws-cfn-bootstrap -y\n",
                 "\n",
                 "CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-init$\")\n",
@@ -2279,6 +2307,7 @@
       "Type": "AWS::EC2::EIP"
     },
     "PlacementGroup": {
+      "Condition": "create_placement_group",
       "Properties": {
         "Strategy": "cluster"
       },

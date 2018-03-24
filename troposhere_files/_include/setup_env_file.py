@@ -44,4 +44,6 @@ env_file = [
     '\n',
     'source $my_inst_file\n',
     '\n',
+    'echo /usr/local/lib/python2.7/site-packages/ >> /usr/lib/python2.7/site-packages/usrlocal.pth\n',
+    '\n'
 ]
