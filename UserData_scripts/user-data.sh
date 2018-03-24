@@ -96,9 +96,8 @@ install_pip
 ck_for_yum_lck
 fix_cfn_init
 
-
 yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y
-yum install psmisc
+yum install psmisc -y
 yum update aws-cfn-bootstrap -y
 
 CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep "/opt/aws/apitools/.*/bin/cfn-init$")
