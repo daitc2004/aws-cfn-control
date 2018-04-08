@@ -231,7 +231,10 @@ class CfnControl:
         # Debug
         # print('Getting ASG instances from {0}'.format(asg))
 
-        response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=asg)
+        if type(asg) is list:
+            response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=asg)
+        else:
+            response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])
 
         self.instances = list()
         # Build instance IDs list
@@ -332,25 +335,28 @@ class CfnControl:
         print(" {0:3d}   instances are running".format(len(running)))
         print(" {0:3d}   instances are not running".format(len(not_running)))
 
-    def ck_asg_status(self):
+    def ck_asg_inst_status(self, asg=None):
 
-        response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg])
-        in_standby = list()
+        if asg is None:
+            asg = self.asg
+
+        response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])
         in_service = list()
+        not_in_service = list()
 
         # Build instance IDs list
         for r in response['AutoScalingGroups']:
             for i in r['Instances']:
-                if self.ec2.Instance(i['LifecycleState']).instance_id == 'Standby':
-                    in_standby.append(self.ec2.Instance(i['InstanceId']).instance_id)
-                else:
+                if self.ec2.Instance(i['LifecycleState']).instance_id == 'InService':
                     in_service.append(self.ec2.Instance(i['InstanceId']).instance_id)
+                else:
+                    not_in_service.append(self.ec2.Instance(i['InstanceId']).instance_id)
 
         print("ASG instances status:")
         print(" {0:3d}   InService".format(len(in_service)))
-        print(" {0:3d}   Standby".format(len(in_standby)))
+        print(" {0:3d}   Not InService".format(len(not_in_service)))
 
-        return in_service, in_standby
+        return in_service, not_in_service
 
     def enable_ena_vfi(self, instances=None):
 
@@ -387,7 +393,7 @@ class CfnControl:
 
         self.instances = inst_add_ena_vfi
 
-        (inst_in_service, inst_in_standby) = self.ck_asg_status()
+        (inst_in_service, inst_in_standby) = self.ck_asg_inst_status()
 
         if inst_in_service:
             self.asg_enter_standby(inst_in_service)
@@ -1328,9 +1334,12 @@ class CfnControl:
         inst_info = dict()
         for i in instances:
             tag_name = 'NULL'
-            for tag in i.tags:
-                if tag['Key'] == 'Name':
-                    tag_name = tag['Value']
+            try:
+                for tag in i.tags:
+                    if tag['Key'] == 'Name':
+                        tag_name = tag['Value']
+            except:
+                pass
             inst_info[i.id] = {
                 'TAG::Name': tag_name,
                 'Type': i.instance_type,

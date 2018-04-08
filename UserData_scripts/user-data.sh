@@ -17,7 +17,7 @@ function ck_for_yum_lck {
   if [[ -f  /var/run/yum.pid ]]; then
     sleep 30
   fi
-  killall -9 yum
+  /usr/bin/killall -9 yum
 }
 
 function fix_cfn_init {
@@ -32,25 +32,58 @@ function fix_cfn_init {
           yum install epel-release -y
       fi
 
-      yum install pystache python-daemon python-setuptools -y
-      curl -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm
-      rpm -ivh aws-cfn-bootstrap-latest.amzn1.noarch.rpm
-      export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/site-packages
+      while :
+      do
+        rpm -q pystache python-daemon python-setuptools
+        rpm_ck=$?
+
+        if [[ "$rpm_ck" != 0 ]]; then
+          yum install pystache python-daemon python-setuptools -y
+          curl -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm
+          rpm -ivh aws-cfn-bootstrap-latest.amzn1.noarch.rpm
+          export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/site-package
+        else
+          return
+        fi
+        sleep 1
+      done
   fi
 }
 
 function install_awscli {
 
-  pip install awscli
+  while :
+  do
+    aws --version
+    aws_ck=$?
+
+    if [[ "$aws_ck" != 0 ]]; then
+      pip install awscli
+    else
+      return
+    fi
+    sleep 1
+  done
 
 }
 
 function install_pip {
 
-  pushd /tmp
-  curl -O https://bootstrap.pypa.io/get-pip.py
-  python get-pip.py
-  popd
+  while :
+  do
+    pip -V
+    pip_ck=$?
+
+    if [[ "$pip_ck" != 0 ]]; then
+      pushd /tmp
+      curl -O https://bootstrap.pypa.io/get-pip.py
+      python get-pip.py
+      popd
+    else
+      return
+    fi
+    sleep 1
+  done
 
 }
 
@@ -85,27 +118,36 @@ function build_host_file {
 
 }
 
+
 my_inst_file=$setup_tools_dir/my-instance-info.conf
 source $my_inst_file
 
-if [[ "$operating_system" = "rhel7" ]]; then
-  install_awscli
-fi
 
 install_pip
 ck_for_yum_lck
 fix_cfn_init
 
+if [[ "$operating_system" = "rhel7" ]]; then
+  install_awscli
+fi
+
 yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y
-yum install psmisc -y
+yum install psmisc nfs-utils ksh -y
 yum update aws-cfn-bootstrap -y
+
+if [[ $efs_id != "" ]]; then
+  mkdir /mnt/efs
+  mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${efs_id}.efs.${region}.amazonaws.com:/ /mnt/efs
+fi
 
 CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep "/opt/aws/apitools/.*/bin/cfn-init$")
 $CFN_INIT -v --stack $stack_name --resource $launch_config --region $region
 cfn_init_rc=$?
 
 if [[ "$cfn_init_rc" != 0 ]]; then
-  shutdown now
+  echo "Could not run cfn-init command"
+  echo "Shutting down now"
+  ##shutdown now
 fi
 
 # run environment setup and main function
