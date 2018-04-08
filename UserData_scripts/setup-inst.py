@@ -70,6 +70,7 @@ def all_inst_running(instances, client):
 
     return False, len(not_running), not_running
 
+
 def get_asg_from_stack(stack_name, client):
 
     asg = list()
@@ -84,15 +85,46 @@ def get_asg_from_stack(stack_name, client):
 
     return asg
 
-def get_inst_from_asg(asg, client_asg, ec2 ):
+def ck_asg_inst_status(asg, client_asg, ec2):
+    """
+    returns two lists:  list of in service instances, and not in service
+    :param asg:
+    :param client_asg:
+    :param ec2:
+    :return:
+    """
 
     response = client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])
-
+    in_service = list()
+    not_in_service = list()
     instances = list()
+
     # Build instance IDs list
     for r in response['AutoScalingGroups']:
         for i in r['Instances']:
-            instances.append(ec2.Instance(i['InstanceId']).instance_id)
+            if ec2.Instance(i['LifecycleState']).instance_id == 'InService':
+                in_service.append(ec2.Instance(i['InstanceId']).instance_id)
+                instances.append(ec2.Instance(i['InstanceId']).instance_id)
+            else:
+                not_in_service.append(ec2.Instance(i['InstanceId']).instance_id)
+
+    return in_service, not_in_service
+
+
+def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name):
+
+    instances = list()
+
+    while True:
+        if int(total_instances) == len(instances):
+            break
+        for asg in asg_list:
+            if my_asg_short_name in asg:
+                (in_serv, not_in_serv)  = ck_asg_inst_status(asg, asg_client, ec2)
+                for i in in_serv:
+                    if in_serv not in instances:
+                        instances.append(i)
+        time.sleep(1)
 
     return instances
 
@@ -117,15 +149,7 @@ def main():
 
     asg_list = get_asg_from_stack(stack_name, cfn_client)
 
-    while True:
-        if int(total_instances) == len(instances):
-            break
-        for asg in asg_list:
-            if my_asg_short_name in asg:
-                for i in get_inst_from_asg(asg, asg_client, ec2):
-                    if i not in instances:
-                        instances.append(i)
-        time.sleep(10)
+    instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)
 
     all_running_status = False
     inst_count = 0
@@ -134,8 +158,16 @@ def main():
         (all_running_status, inst_count, inst_status_list) = all_inst_running(instances, client_ec2)
         if not all_running_status:
             print('Waiting for all instances to be running')
-            print('Instances not running {0}'.format((', ').join(inst_status_list)))
+            print('Instances not running {0}'.format(', '.join(inst_status_list)))
             time.sleep(10)
+            # update instances
+            o_instances = instances
+            instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)
+            if instances != o_instances:
+                print('Some instances that were running are not now')
+                for down_i in o_instances:
+                    if down_i not in instances:
+                        print('Instance is now not running: {0}'.format(down_i))
 
     print("All {0} instances running in {1}".format(all_inst_running(instances, client_ec2), my_asg_short_name))
 

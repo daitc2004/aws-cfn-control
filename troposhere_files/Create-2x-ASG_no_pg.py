@@ -468,11 +468,6 @@ def main():
         Condition="create_elastic_ip"
     ))
 
-    PlacementGroup = t.add_resource(ec2.PlacementGroup(
-        'PlacementGroup',
-        Strategy='cluster',
-    ))
-
     ASG01LaunchConfig = t.add_resource(LaunchConfiguration(
         'ASG01LaunchConfiguration',
         ImageId=FindInMap("AWSRegionAMI", Ref("AWS::Region"), Ref(OperatingSystem)),
@@ -681,7 +676,6 @@ def main():
         Cooldown=10,
         LaunchConfigurationName=Ref(ASG01LaunchConfig),
         VPCZoneIdentifier=Ref(Subnet),
-        PlacementGroup=Ref(PlacementGroup),
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
                 Count=Ref(ASG01ClusterSize),
@@ -698,7 +692,6 @@ def main():
         Cooldown=10,
         LaunchConfigurationName=Ref(ASG02LaunchConfig),
         VPCZoneIdentifier=Ref(Subnet),
-        PlacementGroup=Ref(PlacementGroup),
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
                 Count=Ref(ASG02ClusterSize),

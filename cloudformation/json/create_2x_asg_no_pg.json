@@ -1502,7 +1502,8 @@
                 "fi\n",
                 "\n",
                 "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc nfs-utils ksh -y\n",
+                "yum install psmisc -y\n",
+                "yum install nfs-utils -y\n",
                 "yum update aws-cfn-bootstrap -y\n",
                 "\n",
                 "if [[ $efs_id != \"\" ]]; then\n",
@@ -2331,7 +2332,8 @@
                 "fi\n",
                 "\n",
                 "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc nfs-utils ksh -y\n",
+                "yum install psmisc -y\n",
+                "yum install nfs-utils -y\n",
                 "yum update aws-cfn-bootstrap -y\n",
                 "\n",
                 "if [[ $efs_id != \"\" ]]; then\n",
@@ -2394,9 +2396,6 @@
         "MinSize": {
           "Ref": "ASG01MinClusterSize"
         },
-        "PlacementGroup": {
-          "Ref": "PlacementGroup"
-        },
         "VPCZoneIdentifier": {
           "Ref": "Subnet"
         }
@@ -2426,9 +2425,6 @@
         "MinSize": {
           "Ref": "ASG02MinClusterSize"
         },
-        "PlacementGroup": {
-          "Ref": "PlacementGroup"
-        },
         "VPCZoneIdentifier": {
           "Ref": "Subnet"
         }
@@ -2441,12 +2437,6 @@
         "Domain": "vpc"
       },
       "Type": "AWS::EC2::EIP"
-    },
-    "PlacementGroup": {
-      "Properties": {
-        "Strategy": "cluster"
-      },
-      "Type": "AWS::EC2::PlacementGroup"
     },
     "RootInstanceProfile": {
       "Properties": {

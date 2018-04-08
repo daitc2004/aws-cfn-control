@@ -41,6 +41,7 @@ env_file = [
     'echo region=', Ref('AWS::Region'), ' >> $my_inst_file\n',
     'echo stack_name=', Ref('AWS::StackName'), ' >> $my_inst_file\n',
     'echo eip_address=', Ref('EIPAddress'), ' >> $my_inst_file\n',
+    'echo efs_id=', Ref('EfsId'), ' >> $my_inst_file\n',
     '\n',
     'source $my_inst_file\n',
     '\n',
