@@ -380,7 +380,6 @@ def main():
         'EfsId',
         Type="String",
         Description="EFS ID (e.g. fs-1234abcd)",
-        Default="NONE"
     ))
 
     RootRole = t.add_resource(iam.Role(
