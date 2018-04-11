@@ -118,11 +118,21 @@ function build_host_file {
 
 }
 
+function mount_efs {
+  if [[ "$efs_id" == "NONE" ]]; then
+       efs_id=$new_efs
+  fi
+  efs_mount_pt="/mnt/efs"
+  mkdir -p $efs_mount_pt
+  nfs_opts="nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2  0  0"
+  echo "${efs_id}.efs.${region}.amazonaws.com:/ $efs_mount_pt   nfs4 $nfs_opts" >> /etc/fstab
+  mount $efs_mount_pt
+}
 
 my_inst_file=$setup_tools_dir/my-instance-info.conf
 source $my_inst_file
 
-
+mount_efs
 install_pip
 ck_for_yum_lck
 fix_cfn_init
@@ -135,10 +145,6 @@ yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.r
 yum install psmisc nfs-utils ksh -y
 yum update aws-cfn-bootstrap -y
 
-if [[ $efs_id != "" ]]; then
-  mkdir /mnt/efs
-  mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${efs_id}.efs.${region}.amazonaws.com:/ /mnt/efs
-fi
 
 CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep "/opt/aws/apitools/.*/bin/cfn-init$")
 $CFN_INIT -v --stack $stack_name --resource $launch_config --region $region

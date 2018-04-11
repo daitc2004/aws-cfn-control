@@ -16,7 +16,7 @@
 import sys
 from pprint import pprint
 
-from troposphere import Base64, FindInMap, GetAtt, Join, iam
+from troposphere import Base64, FindInMap, GetAtt, Join, iam, Tags
 from troposphere import Parameter, Output, Ref, Template, Condition, Equals, And, Or, Not, If
 from troposphere import cloudformation, autoscaling
 from troposphere.autoscaling import AutoScalingGroup, Tag, Metadata
@@ -42,6 +42,7 @@ from awacs.aws import Allow, Statement, Principal, Policy, PolicyDocument
 import awacs.sns
 import awacs.sqs
 from awacs.sts import AssumeRole
+from troposphere.efs import FileSystem, MountTarget
 
 from troposphere.policies import CreationPolicy, ResourceSignal
 
@@ -378,7 +379,8 @@ def main():
     EfsId = t.add_parameter(Parameter(
         'EfsId',
         Type="String",
-        Description="EFS ID (e.g. fs-1234abcd)"
+        Description="EFS ID (e.g. fs-1234abcd)",
+        Default="NONE"
     ))
 
     RootRole = t.add_resource(iam.Role(
@@ -472,6 +474,15 @@ def main():
         'PlacementGroup',
         Strategy='cluster',
     ))
+
+    tags = Tags(Name='NewEFS')
+    New_EFS_file_system = FileSystem(
+        "newEfsFileSystem",
+        Encrypted=True,
+        PerformanceMode='generalPurpose',
+        Condition='create_efs',
+        FileSystemTags=tags
+    )
 
     ASG01LaunchConfig = t.add_resource(LaunchConfiguration(
         'ASG01LaunchConfiguration',
@@ -711,13 +722,22 @@ def main():
                     Equals(
                         Ref(UsePublicIp),
                         "True"
-                    ))
+                    )
+    )
 
     t.add_condition("create_elastic_ip",
                     Equals(
                         Ref(CreateElasticIP),
                         "True"
-                    ))
+                    )
+    )
+
+    t.add_condition("create_efs",
+                    Equals(
+                        Ref(EfsId),
+                        "NONE"
+                    )
+    )
 
     t.add_output([
         Output(
