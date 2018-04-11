@@ -115,11 +115,10 @@ function build_host_file {
 
   echo "All instances reachable"
   return
-
 }
 
 function mount_efs {
-  if [[ "$efs_id" == "NONE" ]]; then
+  if [[ "$efs_id" == "" ]]; then
        efs_id=$new_efs
   fi
   efs_mount_pt="/mnt/efs"
@@ -153,7 +152,7 @@ cfn_init_rc=$?
 if [[ "$cfn_init_rc" != 0 ]]; then
   echo "Could not run cfn-init command"
   echo "Shutting down now"
-  ##shutdown now
+  shutdown now
 fi
 
 # run environment setup and main function

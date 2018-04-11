@@ -42,7 +42,7 @@ env_file = [
     'echo stack_name=', Ref('AWS::StackName'), ' >> $my_inst_file\n',
     'echo eip_address=', Ref('EIPAddress'), ' >> $my_inst_file\n',
     'echo efs_id=', Ref('EfsId'), ' >> $my_inst_file\n',
-    'echo new_efs=', Ref('New_EFS_file_system'), ' >> $my_inst_file\n',
+    'echo new_efs=', Ref('NewEfsFileSystem'), ' >> $my_inst_file\n',
     '\n',
     'source $my_inst_file\n',
     '\n',

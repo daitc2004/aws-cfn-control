@@ -267,7 +267,7 @@ def main():
 
     Subnet = t.add_parameter(Parameter(
         'Subnet',
-        Type="List<AWS::EC2::Subnet::Id>",
+        Type="AWS::EC2::Subnet::Id",
         Description="Subnet IDs"
     ))
 
@@ -475,14 +475,22 @@ def main():
         Strategy='cluster',
     ))
 
-    tags = Tags(Name='NewEFS')
-    New_EFS_file_system = FileSystem(
-        "newEfsFileSystem",
+    tags = Tags(Name=Ref("AWS::StackName"))
+    NewEfsFileSystem = t.add_resource(FileSystem(
+        "NewEfsFileSystem",
         Encrypted=True,
         PerformanceMode='generalPurpose',
+        FileSystemTags=tags,
         Condition='create_efs',
-        FileSystemTags=tags
-    )
+    ))
+
+    EfsMountTarget = t.add_resource(MountTarget(
+        "NewEfsMountTarget",
+        FileSystemId=Ref(NewEfsFileSystem),
+        SecurityGroups=[Ref(SecurityGroups)],
+        SubnetId=Ref(Subnet),
+        Condition='create_efs'
+    ))
 
     ASG01LaunchConfig = t.add_resource(LaunchConfiguration(
         'ASG01LaunchConfiguration',
@@ -691,7 +699,7 @@ def main():
         MaxSize=Ref(ASG01MaxClusterSize),
         Cooldown=10,
         LaunchConfigurationName=Ref(ASG01LaunchConfig),
-        VPCZoneIdentifier=Ref(Subnet),
+        VPCZoneIdentifier=[(Ref(Subnet))],
         PlacementGroup=Ref(PlacementGroup),
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
@@ -708,7 +716,7 @@ def main():
         MaxSize=Ref(ASG02MaxClusterSize),
         Cooldown=10,
         LaunchConfigurationName=Ref(ASG02LaunchConfig),
-        VPCZoneIdentifier=Ref(Subnet),
+        VPCZoneIdentifier=[(Ref(Subnet))],
         PlacementGroup=Ref(PlacementGroup),
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
@@ -735,7 +743,7 @@ def main():
     t.add_condition("create_efs",
                     Equals(
                         Ref(EfsId),
-                        "NONE"
+                        ""
                     )
     )
 
