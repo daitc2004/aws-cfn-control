@@ -6,7 +6,7 @@
         {
           "Ref": "EfsId"
         },
-        "NONE"
+        ""
       ]
     },
     "create_elastic_ip": {
@@ -704,7 +704,7 @@
     },
     "Subnet": {
       "Description": "Subnet IDs",
-      "Type": "List<AWS::EC2::Subnet::Id>"
+      "Type": "AWS::EC2::Subnet::Id"
     },
     "UsePublicIp": {
       "AllowedValues": [
@@ -1366,7 +1366,7 @@
                 " >> $my_inst_file\n",
                 "echo new_efs=",
                 {
-                  "Ref": "New_EFS_file_system"
+                  "Ref": "NewEfsFileSystem"
                 },
                 " >> $my_inst_file\n",
                 "\n",
@@ -1499,11 +1499,10 @@
                 "\n",
                 "  echo \"All instances reachable\"\n",
                 "  return\n",
-                "\n",
                 "}\n",
                 "\n",
                 "function mount_efs {\n",
-                "  if [[ \"$efs_id\" == \"NONE\" ]]; then\n",
+                "  if [[ \"$efs_id\" == \"\" ]]; then\n",
                 "       efs_id=$new_efs\n",
                 "  fi\n",
                 "  efs_mount_pt=\"/mnt/efs\"\n",
@@ -1537,7 +1536,7 @@
                 "if [[ \"$cfn_init_rc\" != 0 ]]; then\n",
                 "  echo \"Could not run cfn-init command\"\n",
                 "  echo \"Shutting down now\"\n",
-                "  ##shutdown now\n",
+                "  shutdown now\n",
                 "fi\n",
                 "\n",
                 "# run environment setup and main function\n",
@@ -2206,7 +2205,7 @@
                 " >> $my_inst_file\n",
                 "echo new_efs=",
                 {
-                  "Ref": "New_EFS_file_system"
+                  "Ref": "NewEfsFileSystem"
                 },
                 " >> $my_inst_file\n",
                 "\n",
@@ -2339,11 +2338,10 @@
                 "\n",
                 "  echo \"All instances reachable\"\n",
                 "  return\n",
-                "\n",
                 "}\n",
                 "\n",
                 "function mount_efs {\n",
-                "  if [[ \"$efs_id\" == \"NONE\" ]]; then\n",
+                "  if [[ \"$efs_id\" == \"\" ]]; then\n",
                 "       efs_id=$new_efs\n",
                 "  fi\n",
                 "  efs_mount_pt=\"/mnt/efs\"\n",
@@ -2377,7 +2375,7 @@
                 "if [[ \"$cfn_init_rc\" != 0 ]]; then\n",
                 "  echo \"Could not run cfn-init command\"\n",
                 "  echo \"Shutting down now\"\n",
-                "  ##shutdown now\n",
+                "  shutdown now\n",
                 "fi\n",
                 "\n",
                 "# run environment setup and main function\n",
@@ -2428,9 +2426,11 @@
         "PlacementGroup": {
           "Ref": "PlacementGroup"
         },
-        "VPCZoneIdentifier": {
-          "Ref": "Subnet"
-        }
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "Subnet"
+          }
+        ]
       },
       "Type": "AWS::AutoScaling::AutoScalingGroup"
     },
@@ -2460,9 +2460,11 @@
         "PlacementGroup": {
           "Ref": "PlacementGroup"
         },
-        "VPCZoneIdentifier": {
-          "Ref": "Subnet"
-        }
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "Subnet"
+          }
+        ]
       },
       "Type": "AWS::AutoScaling::AutoScalingGroup"
     },
@@ -2472,6 +2474,39 @@
         "Domain": "vpc"
       },
       "Type": "AWS::EC2::EIP"
+    },
+    "NewEfsFileSystem": {
+      "Condition": "create_efs",
+      "Properties": {
+        "Encrypted": "true",
+        "FileSystemTags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          }
+        ],
+        "PerformanceMode": "generalPurpose"
+      },
+      "Type": "AWS::EFS::FileSystem"
+    },
+    "NewEfsMountTarget": {
+      "Condition": "create_efs",
+      "Properties": {
+        "FileSystemId": {
+          "Ref": "NewEfsFileSystem"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "SecurityGroups"
+          }
+        ],
+        "SubnetId": {
+          "Ref": "Subnet"
+        }
+      },
+      "Type": "AWS::EFS::MountTarget"
     },
     "PlacementGroup": {
       "Properties": {
