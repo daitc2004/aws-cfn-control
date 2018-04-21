@@ -436,9 +436,6 @@
             "ASG02InstanceType",
             "OperatingSystem",
             "EC2KeyName",
-            "SSHClusterKeyPub",
-            "SSHClusterKeyPriv",
-            "SSHBucketName",
             "UsePublicIp"
           ]
         },
@@ -522,15 +519,6 @@
         },
         "OperatingSystem": {
           "default": "Instance OS"
-        },
-        "SSHBucketName": {
-          "default": "SSH Bucket"
-        },
-        "SSHClusterKeyPriv": {
-          "default": "SSH Private Key Name"
-        },
-        "SSHClusterKeyPub": {
-          "default": "SSH Public Key Name"
         },
         "SecurityGroups": {
           "default": "Security Groups"
@@ -680,21 +668,6 @@
       "ConstraintDescription": "Must be: alinux, alinux2, centos6, centos7, rhel7, suse11, suse12, ubuntu14, ubuntu16",
       "Default": "alinux",
       "Description": "Operating System",
-      "Type": "String"
-    },
-    "SSHBucketName": {
-      "ConstraintDescription": "Existing bucket where the ssh keyes are stored",
-      "Description": "REQUIRED:  Bucket for the ssh keys (named below)",
-      "Type": "String"
-    },
-    "SSHClusterKeyPriv": {
-      "Default": "id_rsa",
-      "Description": "REQUIRED:  Private key name for ssh between instances in cluster",
-      "Type": "String"
-    },
-    "SSHClusterKeyPub": {
-      "Default": "id_rsa.pub",
-      "Description": "REQUIRED:  Public key name for ssh between instances in cluster",
       "Type": "String"
     },
     "SecurityGroups": {
@@ -1239,7 +1212,6 @@
                         "    else\n",
                         "      echo \"Can't see ssh key yet.  Waiting...\"\n",
                         "      sleep 60\n",
-                        "      ((ssh_count=$ssh_count+1))\n",
                         "      if [[ \"$ssh_count\" -eq 11 ]]; then\n",
                         "        echo \"Could not copy ssh key files\"\n",
                         "        return\n",
@@ -2171,7 +2143,6 @@
                         "    else\n",
                         "      echo \"Can't see ssh key yet.  Waiting...\"\n",
                         "      sleep 60\n",
-                        "      ((ssh_count=$ssh_count+1))\n",
                         "      if [[ \"$ssh_count\" -eq 11 ]]; then\n",
                         "        echo \"Could not copy ssh key files\"\n",
                         "        return\n",
@@ -2730,41 +2701,6 @@
           {
             "PolicyDocument": {
               "Statement": [
-                {
-                  "Action": [
-                    "s3:GetObject"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:aws:s3:::",
-                        {
-                          "Ref": "SSHBucketName"
-                        },
-                        "/*"
-                      ]
-                    ]
-                  }
-                },
-                {
-                  "Action": [
-                    "s3:ListBucket"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "arn:aws:s3:::",
-                        {
-                          "Ref": "SSHBucketName"
-                        }
-                      ]
-                    ]
-                  }
-                },
                 {
                   "Action": [
                     "s3:GetObject"
