@@ -120,9 +120,6 @@ def main():
                                    'ASG02InstanceType',
                                    "OperatingSystem",
                                    'EC2KeyName',
-                                   "SSHClusterKeyPub",
-                                   "SSHClusterKeyPriv",
-                                   "SSHBucketName",
                                    "UsePublicIp",
                                    ]
                 },
@@ -160,9 +157,6 @@ def main():
                 'ASG02InstanceType': {'default': 'ASG 02 Instance Type'},
                 'OperatingSystem': {'default': 'Instance OS'},
                 'EC2KeyName': {'default': 'EC2 Key Name'},
-                'SSHClusterKeyPub': {'default': 'SSH Public Key Name'},
-                'SSHClusterKeyPriv': {'default': 'SSH Private Key Name'},
-                'SSHBucketName': {'default': 'SSH Bucket'},
                 'UsePublicIp': {'default': 'Use a Public IP'},
                 'VPCId': {'default': 'VPC ID'},
                 'Subnet': {'default': 'Subnet ID'},
@@ -278,27 +272,6 @@ def main():
         Description="REQUIRED: Security Groups IDs"
     ))
 
-    SSHBucketName = t.add_parameter(Parameter(
-        'SSHBucketName',
-        Type="String",
-        Description="REQUIRED:  Bucket for the ssh keys (named below)",
-        ConstraintDescription="Existing bucket where the ssh keyes are stored"
-    ))
-
-    SSHClusterKeyPub = t.add_parameter(Parameter(
-        'SSHClusterKeyPub',
-        Type="String",
-        Description="REQUIRED:  Public key name for ssh between instances in cluster",
-        Default="id_rsa.pub"
-    ))
-
-    SSHClusterKeyPriv = t.add_parameter(Parameter(
-        'SSHClusterKeyPriv',
-        Type="String",
-        Description="REQUIRED:  Private key name for ssh between instances in cluster",
-        Default="id_rsa"
-    ))
-
     UsePublicIp = t.add_parameter(Parameter(
         'UsePublicIp',
         Type="String",
@@ -396,25 +369,16 @@ def main():
             iam.Policy(
                 PolicyName="s3bucketaccess",
                 PolicyDocument={
-                    "Statement": [{
+                    "Statement": [
+                    {
                         "Effect": "Allow",
-                        "Action": [ "s3:GetObject" ],
-                        "Resource": { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "SSHBucketName" } , "/*" ] ] }
+                        "Action": ["s3:GetObject"],
+                        "Resource": {"Fn::Join":["", ["arn:aws:s3:::", {"Ref": "AdditionalBucketName"},"/*"]]}
                     },
                     {
                         "Effect": "Allow",
-                        "Action": [ "s3:ListBucket" ],
-                        "Resource": { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "SSHBucketName" } ] ] }
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [ "s3:GetObject" ],
-                        "Resource": { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "AdditionalBucketName" } , "/*" ] ] }
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [ "s3:ListBucket" ],
-                        "Resource": { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "AdditionalBucketName" } ] ] }
+                        "Action": [ "s3:ListBucket"],
+                        "Resource": {"Fn::Join":["", ["arn:aws:s3:::", {"Ref": "AdditionalBucketName"}]]}
                     }],
                 }
             ),

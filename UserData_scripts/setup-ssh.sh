@@ -75,7 +75,6 @@ function setup_ssh {
     else
       echo "Can't see ssh key yet.  Waiting..."
       sleep 60
-      ((ssh_count=$ssh_count+1))
       if [[ "$ssh_count" -eq 11 ]]; then
         echo "Could not copy ssh key files"
         return
