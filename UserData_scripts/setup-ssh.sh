@@ -15,25 +15,89 @@ set -x
 # License for the specific language governing permissions and limitations under the License.
 #
 
+
+function setup_ssh {
+
+  # EFS mount check is already in setup-main
+
+  ssh_key_dir=/mnt/efs/${stack_name}
+  ssh_key_file=${ssh_key_dir}/id_rsa
+
+  if [[ "$my_instance_id" = "$eip_instance" ]]; then
+    echo "On the EIP instance, creating key $ssh_key_file"
+
+    # make key dir
+    mkdir -p $ssh_key_dir
+    mkdir_rc=$?
+    if [[ "$mkdir_rc" != 0 ]]; then
+      echo "Could not create $ssh_key_dir"
+      return
+    fi
+
+    # make keys
+    ssh-keygen -b 2048 -t rsa -f $ssh_key_file -q -N ''
+    ssh_rc=$?
+    if [[ "$ssh_rc" != 0 ]]; then
+      echo "Could not generate ssy key"
+      return
+    fi
+
+  fi
+
+  echo "Copying ssh keys to ${home_dir}/.ssh"
+
+  let ssh_count=1
+  let ssh_rc=0
+
+  while [[ "$ssh_count" -lt 11 ]]; do
+    if [[ -e "${ssh_key_dir}/id_rsa" ]]; then
+      cp ${ssh_key_dir}/id_rsa $home_dir/.ssh/id_rsa
+      ((ssh_rc=$ssh_rc+$?))
+
+      cp ${ssh_key_dir}/id_rsa.pub $home_dir/.ssh/id_rsa.pub
+      ((ssh_rc=$ssh_rc+$?))
+
+      cat $home_dir/.ssh/id_rsa.pub >> $home_dir/.ssh/authorized_keys
+      ((ssh_rc=$ssh_rc+$?))
+
+      chown ${login_user}:${login_user} $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa $home_dir/.ssh/authorized_keys
+      ((ssh_rc=$ssh_rc+$?))
+
+      chmod 600 $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa
+      ((ssh_rc=$ssh_rc+$?))
+
+      if [[ "$ssh_rc" -gt 0 ]]; then
+        echo "Problem when copying ssh key files"
+        return
+      fi
+      echo "Successfully setup ssh keys in ${home_dir}/.ssh"
+      return
+    else
+      echo "Can't see ssh key yet.  Waiting..."
+      sleep 60
+      ((ssh_count=$ssh_count+1))
+      if [[ "$ssh_count" -eq 11 ]]; then
+        echo "Could not copy ssh key files"
+        return
+      fi
+    fi
+    ((ssh_count=$ssh_count+1))
+  done
+  return
+}
+
+my_inst_file=/opt/aws/setup-tools/my-instance-info.conf
+
 if [[ $1 ]]; then
   my_inst_file=$1
-else
-  my_inst_file=/opt/aws/setup-tools/my-instance-info.conf
+fi
+
+if [[ ! -e "$my_inst_file" ]]; then
+  echo "$my_inst_file does not exist.  Exiting..."
+  exit 1
 fi
 
 source $my_inst_file
-
-echo Copying ssh keys to $home_dir/.ssh
-
-ssh_bucket="Ref('SSHBucketName')"
-ssh_keypriv="Ref('SSHClusterKeyPriv')"
-ssh_keypub="Ref('SSHClusterKeyPub')"
-
-aws s3 cp s3://$ssh_bucket/$ssh_keypriv $home_dir/.ssh/id_rsa
-aws s3 cp s3://$ssh_bucket/$ssh_keypub $home_dir/.ssh/id_rsa.pub
-
-cat $home_dir/.ssh/id_rsa.pub >> $home_dir/.ssh/authorized_keys
-chown ${login_user}:${login_user} $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa $home_dir/.ssh/authorized_keys
-chmod 600 $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa
+setup_ssh
 
 exit 0

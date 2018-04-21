@@ -16,6 +16,7 @@
 import sys
 import time
 import boto3
+import logging
 import operator
 
 '''
@@ -24,8 +25,12 @@ Wait for all instances to be 'running', and then set the
 Elastic IP address to the instance that has been up the longest.
 '''
 
+progname = 'setup-inst'
+
 
 def set_inst_eip (eip, my_instance_id, my_inst_file, instances, client):
+
+    logger.info("Setting EIP")
 
     launch_time = dict()
 
@@ -46,10 +51,12 @@ def set_inst_eip (eip, my_instance_id, my_inst_file, instances, client):
         f = open(my_inst_file, 'a')
         f.write('eip_instance={0}\n'.format(inst_to_alloc_eip))
         f.close()
-        print('Assigned {0} to instance {1}'.format(eip, inst_to_alloc_eip))
+        logger.info('Assigned {0} to instance {1}'.format(eip, inst_to_alloc_eip))
 
 
 def all_inst_running(instances, client):
+
+    logger.info("Checking if all instances are running")
 
     num_inst = len(instances)
 
@@ -73,6 +80,8 @@ def all_inst_running(instances, client):
 
 def get_asg_from_stack(stack_name, client):
 
+    logger.info('Getting the ASG(s) from stack {}'.format(stack_name))
+
     asg = list()
 
     stk_response = client.describe_stack_resources(StackName=stack_name)
@@ -94,6 +103,8 @@ def ck_asg_inst_status(asg, client_asg, ec2):
     :return:
     """
 
+    logger.info('Checking the instance status for ASG {}'.format(asg))
+
     response = client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])
     in_service = list()
     not_in_service = list()
@@ -113,6 +124,8 @@ def ck_asg_inst_status(asg, client_asg, ec2):
 
 def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name):
 
+    logger.info('Checking the current instance status for {}'.format(' '.join(asg_list)))
+
     instances = list()
 
     while True:
@@ -130,6 +143,8 @@ def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, m
 
 
 def main():
+
+    logger.info('Setup the instance...')
 
     my_instance_id = sys.argv[1]
     my_inst_file = sys.argv[2]
@@ -157,19 +172,19 @@ def main():
     while not all_running_status:
         (all_running_status, inst_count, inst_status_list) = all_inst_running(instances, client_ec2)
         if not all_running_status:
-            print('Waiting for all instances to be running')
-            print('Instances not running {0}'.format(', '.join(inst_status_list)))
+            logger.info('Waiting for all instances to be running')
+            logger.info('Instances not running {0}'.format(', '.join(inst_status_list)))
             time.sleep(10)
             # update instances
             o_instances = instances
             instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)
             if instances != o_instances:
-                print('Some instances that were running are not now')
+                logger.info('Some instances that were running are not now')
                 for down_i in o_instances:
                     if down_i not in instances:
-                        print('Instance is now not running: {0}'.format(down_i))
+                        logger.info('Instance is now not running: {0}'.format(down_i))
 
-    print("All {0} instances running in {1}".format(all_inst_running(instances, client_ec2), my_asg_short_name))
+    logger.info("All {0} instances running in {1}".format(all_inst_running(instances, client_ec2), my_asg_short_name))
 
     time.sleep(5)
 
@@ -177,14 +192,25 @@ def main():
     if my_asg_short_name == "AutoScalingGroup01":
         set_inst_eip(ip_addr, my_instance_id, my_inst_file, instances, client_ec2)
 
+
 if __name__ == "__main__":
+
+    log_file = "/var/log/{0}.log".format(progname)
+
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                        datefmt='%m-%d %H:%M',
+                        filename=log_file)
+
+    logger = logging.getLogger(progname)
+
     try:
         sys.exit(main())
     except KeyboardInterrupt:
         print '\nReceived Keyboard interrupt.'
         print 'Exiting...'
     except ValueError as e:
-        print('ERROR: {0}'.format(e))
+        logger.info('ERROR: {0}'.format(e))
 
 
 
