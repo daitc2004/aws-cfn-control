@@ -18,6 +18,7 @@ from pprint import pprint
 
 from troposphere import Base64, FindInMap, GetAtt, Join, iam, Tags
 from troposphere import Parameter, Output, Ref, Template, Condition, Equals, And, Or, Not, If
+from troposphere.cloudformation import WaitCondition, WaitConditionHandle
 from troposphere import cloudformation, autoscaling
 from troposphere.autoscaling import AutoScalingGroup, Tag, Metadata
 from troposphere.autoscaling import LaunchConfiguration
@@ -702,7 +703,7 @@ def main():
         PlacementGroup=Ref(PlacementGroup),
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
-                Count=Ref(ASG01ClusterSize),
+                Count=Ref(ASG01MinClusterSize),
                 Timeout='PT60M'
             )
         ),
@@ -719,7 +720,7 @@ def main():
         PlacementGroup=Ref(PlacementGroup),
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
-                Count=Ref(ASG02ClusterSize),
+                Count=Ref(ASG02MinClusterSize),
                 Timeout='PT60M'
             )
         ),

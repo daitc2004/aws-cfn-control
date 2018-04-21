@@ -31,6 +31,7 @@ env_file = [
     '  login_user="root"\n',
     '  home_dir="/root"\n',
     'fi\n',
+    'echo DATE=$(date "+%Y%m%d.%M%S") >> $my_inst_file\n',
     'echo login_user=$login_user >> $my_inst_file\n',
     'echo setup_tools_dir=$setup_tools_dir >> $my_inst_file\n',
     'echo my_inst_file=$my_inst_file >> $my_inst_file\n',
