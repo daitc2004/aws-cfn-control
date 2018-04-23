@@ -149,7 +149,8 @@ def main():
                 {
                     'Label': {'default': 'Additional Configuration Parameters'},
                     'Parameters': ["AdditionalBucketName",
-                                   "EfsId"
+                                   "EfsId",
+                                   "SshAccessCidr"
                                    ]
                 }
             ],
@@ -170,7 +171,8 @@ def main():
                 'ASG02MaxClusterSize': {'default': 'Max ASG 02 cluster size'},
                 'ASG02MinClusterSize': {'default': 'Min ASG 02 cluster size'},
                 'AdditionalBucketName': {'default': 'Additional Bucket'},
-                'EfsId': {'default': 'EFS File System ID'}
+                'EfsId': {'default': 'EFS File System ID'},
+                'SshAccessCidr': {'default': 'SSH Access CIDR Block'}
             }
         }
     })
@@ -269,8 +271,8 @@ def main():
 
     ExistingSecurityGroup = t.add_parameter(Parameter(
         'ExistingSecurityGroup',
-        Type="AWS::EC2::SecurityGroup::Id",
-        Description="Choose an existing Security Group ID"
+        Type="String",
+        Description="Choose an existing Security Group ID, e.g. sg-abcd1234"
     ))
 
     UsePublicIp = t.add_parameter(Parameter(
@@ -357,6 +359,15 @@ def main():
         Description="EFS ID (e.g. fs-1234abcd)",
     ))
 
+    SshAccessCidr = t.add_parameter(Parameter(
+        'SshAccessCidr',
+        Type="String",
+        Description="CIDR Block for SSH access, default 0.0.0.0/0",
+        Default="0.0.0.0/0",
+        AllowedPattern="(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+        ConstraintDescription="Must be a valid CIDR x.x.x.x/x"
+    ))
+
     RootRole = t.add_resource(iam.Role(
         "RootRole",
         AssumeRolePolicyDocument={"Statement": [{
@@ -439,6 +450,20 @@ def main():
         GroupId=Ref(ClusterSecurityGroup)
     ))
 
+    SshSecurityGroup = t.add_resource(SecurityGroup(
+        "SshSecurityGroup",
+        VpcId = Ref(VPCId),
+        GroupDescription = "SSH Secuirty group",
+        SecurityGroupIngress=[
+            ec2.SecurityGroupRule(
+                IpProtocol="tcp",
+                FromPort="22",
+                ToPort="22",
+                CidrIp=Ref(SshAccessCidr),
+            ),
+        ]
+    ))
+
     RootInstanceProfile = t.add_resource(InstanceProfile(
         "RootInstanceProfile",
         Roles=[Ref(RootRole)]
@@ -467,7 +492,10 @@ def main():
     EfsMountTarget = t.add_resource(MountTarget(
         "NewEfsMountTarget",
         FileSystemId=Ref(NewEfsFileSystem),
-        SecurityGroups=[Ref(ClusterSecurityGroup), Ref(ExistingSecurityGroup)],
+        SecurityGroups=If("not_existing_sg",
+                          [Ref(ClusterSecurityGroup), Ref(SshSecurityGroup)],
+                          [Ref(ClusterSecurityGroup), Ref(SshSecurityGroup), Ref(ExistingSecurityGroup)]
+                          ),
         SubnetId=Ref(Subnet),
         Condition='create_efs'
     ))
@@ -476,7 +504,10 @@ def main():
         'ASG01LaunchConfiguration',
         ImageId=FindInMap("AWSRegionAMI", Ref("AWS::Region"), Ref(OperatingSystem)),
         KeyName=Ref(EC2KeyName),
-        SecurityGroups=[Ref(ClusterSecurityGroup), Ref(ExistingSecurityGroup)],
+        SecurityGroups=If("not_existing_sg",
+                          [Ref(ClusterSecurityGroup), Ref(SshSecurityGroup)],
+                          [Ref(ClusterSecurityGroup), Ref(SshSecurityGroup), Ref(ExistingSecurityGroup)]
+                          ),
         InstanceType=(Ref(ASG01InstanceType)),
         AssociatePublicIpAddress=(Ref(UsePublicIp)),
         IamInstanceProfile=(Ref(RootInstanceProfile)),
@@ -576,7 +607,10 @@ def main():
         'ASG02LaunchConfiguration',
         ImageId=FindInMap("AWSRegionAMI", Ref("AWS::Region"), Ref(OperatingSystem)),
         KeyName=Ref(EC2KeyName),
-        SecurityGroups=[Ref(ClusterSecurityGroup), Ref(ExistingSecurityGroup)],
+        SecurityGroups=If("not_existing_sg",
+                          [Ref(ClusterSecurityGroup), Ref(SshSecurityGroup)],
+                          [Ref(ClusterSecurityGroup), Ref(SshSecurityGroup), Ref(ExistingSecurityGroup)]
+                          ),
         InstanceType=(Ref(ASG02InstanceType)),
         AssociatePublicIpAddress=(Ref(UsePublicIp)),
         IamInstanceProfile=(Ref(RootInstanceProfile)),
@@ -723,6 +757,13 @@ def main():
     t.add_condition("create_efs",
                     Equals(
                         Ref(EfsId),
+                        ""
+                    )
+    )
+
+    t.add_condition("not_existing_sg",
+                    Equals(
+                        Ref(ExistingSecurityGroup),
                         ""
                     )
     )
