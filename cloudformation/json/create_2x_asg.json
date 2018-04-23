@@ -446,7 +446,7 @@
           "Parameters": [
             "VPCId",
             "Subnet",
-            "SecurityGroups",
+            "ExistingSecurityGroup",
             "CreateElasticIP"
           ]
         },
@@ -517,11 +517,11 @@
         "EfsId": {
           "default": "EFS File System ID"
         },
+        "ExistingSecurityGroup": {
+          "default": "Existing Security Group"
+        },
         "OperatingSystem": {
           "default": "Instance OS"
-        },
-        "SecurityGroups": {
-          "default": "Security Groups"
         },
         "Subnet": {
           "default": "Subnet ID"
@@ -653,6 +653,10 @@
       "Description": "EFS ID (e.g. fs-1234abcd)",
       "Type": "String"
     },
+    "ExistingSecurityGroup": {
+      "Description": "Choose an existing Security Group ID",
+      "Type": "AWS::EC2::SecurityGroup::Id"
+    },
     "OperatingSystem": {
       "AllowedValues": [
         "alinux",
@@ -669,10 +673,6 @@
       "Default": "alinux",
       "Description": "Operating System",
       "Type": "String"
-    },
-    "SecurityGroups": {
-      "Description": "REQUIRED: Security Groups IDs",
-      "Type": "AWS::EC2::SecurityGroup::Id"
     },
     "Subnet": {
       "Description": "Subnet IDs",
@@ -1341,7 +1341,10 @@
         },
         "SecurityGroups": [
           {
-            "Ref": "SecurityGroups"
+            "Ref": "ClusterSecurityGroup"
+          },
+          {
+            "Ref": "ExistingSecurityGroup"
           }
         ],
         "UserData": {
@@ -2272,7 +2275,10 @@
         },
         "SecurityGroups": [
           {
-            "Ref": "SecurityGroups"
+            "Ref": "ClusterSecurityGroup"
+          },
+          {
+            "Ref": "ExistingSecurityGroup"
           }
         ],
         "UserData": {
@@ -2624,6 +2630,29 @@
       },
       "Type": "AWS::AutoScaling::AutoScalingGroup"
     },
+    "ClusterSecuirtyGroupIngress": {
+      "Properties": {
+        "FromPort": "0",
+        "GroupId": {
+          "Ref": "ClusterSecurityGroup"
+        },
+        "IpProtocol": "-1",
+        "SourceSecurityGroupId": {
+          "Ref": "ClusterSecurityGroup"
+        },
+        "ToPort": "65535"
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress"
+    },
+    "ClusterSecurityGroup": {
+      "Properties": {
+        "GroupDescription": "Cluster Secuirty group",
+        "VpcId": {
+          "Ref": "VPCId"
+        }
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
     "EIPAddress": {
       "Condition": "create_elastic_ip",
       "Properties": {
@@ -2655,7 +2684,10 @@
         },
         "SecurityGroups": [
           {
-            "Ref": "SecurityGroups"
+            "Ref": "ClusterSecurityGroup"
+          },
+          {
+            "Ref": "ExistingSecurityGroup"
           }
         ],
         "SubnetId": {
