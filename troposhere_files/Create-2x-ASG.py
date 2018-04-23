@@ -31,7 +31,7 @@ from troposphere.ec2 import PortRange, NetworkAcl, Route, \
     VPCGatewayAttachment, SubnetRouteTableAssociation, Subnet, RouteTable, \
     VPC, NetworkInterfaceProperty, NetworkAclEntry, \
     SubnetNetworkAclAssociation, EIP, Instance, InternetGateway, \
-    SecurityGroupRule, SecurityGroup
+    SecurityGroupRule, SecurityGroup, SecurityGroupIngress, SecurityGroupEgress
 import troposphere.elasticloadbalancing as elb
 from troposphere.helpers import userdata
 from troposphere.iam import AccessKey, Group, LoginProfile, PolicyType, Role, InstanceProfile, User
@@ -50,6 +50,7 @@ from troposphere.policies import CreationPolicy, ResourceSignal
 from _include.cfn_mappings import AddAMIMap, AddEBSOptMap, AddOSInfoMap
 from _include.setup_env_file import env_file
 
+
 def main():
     t = Template()
     AddAMIMap(t)
@@ -63,14 +64,14 @@ def main():
     launch_config1 = "ASG01LaunchConfiguration"
     launch_config2 = "ASG02LaunchConfiguration"
 
-    user_data_all = [ '#!/bin/bash -x\n',
-                      '\n',
-                      '##exit 0\n',  # use this to disable all user-data and bring up files
-                      '\n',
-                      'setup_tools_dir={0}\n'.format(setup_tools_dir),
-                      'mkdir -p $setup_tools_dir\n',
-                      'chmod 755 $setup_tools_dir\n',
-                      '\n',
+    user_data_all = ['#!/bin/bash -x\n',
+                     '\n',
+                     '##exit 0\n',  # use this to disable all user-data and bring up files
+                     '\n',
+                     'setup_tools_dir={0}\n'.format(setup_tools_dir),
+                     'mkdir -p $setup_tools_dir\n',
+                     'chmod 755 $setup_tools_dir\n',
+                     '\n',
     ]
 
     user_data_all = list(user_data_all + env_file)
@@ -127,7 +128,7 @@ def main():
                     'Label': {'default': 'Network Configuration'},
                     'Parameters': ["VPCId",
                                    "Subnet",
-                                   "SecurityGroups",
+                                   "ExistingSecurityGroup",
                                    "CreateElasticIP",
                                    ]
                 },
@@ -160,7 +161,7 @@ def main():
                 'UsePublicIp': {'default': 'Use a Public IP'},
                 'VPCId': {'default': 'VPC ID'},
                 'Subnet': {'default': 'Subnet ID'},
-                'SecurityGroups': {'default': 'Security Groups'},
+                'ExistingSecurityGroup': {'default': 'Existing Security Group'},
                 'CreateElasticIP': {'default': 'Create and Elaastic IP'},
                 'ASG01ClusterSize': {'default': 'Initial ASG 01 cluster size'},
                 'ASG01MaxClusterSize': {'default': 'Max ASG 01 cluster size'},
@@ -266,10 +267,10 @@ def main():
         Description="Subnet IDs"
     ))
 
-    SecurityGroups = t.add_parameter(Parameter(
-        'SecurityGroups',
+    ExistingSecurityGroup = t.add_parameter(Parameter(
+        'ExistingSecurityGroup',
         Type="AWS::EC2::SecurityGroup::Id",
-        Description="REQUIRED: Security Groups IDs"
+        Description="Choose an existing Security Group ID"
     ))
 
     UsePublicIp = t.add_parameter(Parameter(
@@ -423,6 +424,21 @@ def main():
         ]
     ))
 
+    ClusterSecurityGroup = t.add_resource(SecurityGroup(
+        "ClusterSecurityGroup",
+        VpcId = Ref(VPCId),
+        GroupDescription = "Cluster Secuirty group",
+    ))
+
+    ClusterSecurityGroupIngress = t.add_resource(SecurityGroupIngress(
+       "ClusterSecuirtyGroupIngress",
+        IpProtocol='-1',
+        FromPort='0',
+        ToPort='65535',
+        SourceSecurityGroupId=Ref(ClusterSecurityGroup),
+        GroupId=Ref(ClusterSecurityGroup)
+    ))
+
     RootInstanceProfile = t.add_resource(InstanceProfile(
         "RootInstanceProfile",
         Roles=[Ref(RootRole)]
@@ -451,7 +467,7 @@ def main():
     EfsMountTarget = t.add_resource(MountTarget(
         "NewEfsMountTarget",
         FileSystemId=Ref(NewEfsFileSystem),
-        SecurityGroups=[Ref(SecurityGroups)],
+        SecurityGroups=[Ref(ClusterSecurityGroup), Ref(ExistingSecurityGroup)],
         SubnetId=Ref(Subnet),
         Condition='create_efs'
     ))
@@ -460,7 +476,7 @@ def main():
         'ASG01LaunchConfiguration',
         ImageId=FindInMap("AWSRegionAMI", Ref("AWS::Region"), Ref(OperatingSystem)),
         KeyName=Ref(EC2KeyName),
-        SecurityGroups=[Ref(SecurityGroups)],
+        SecurityGroups=[Ref(ClusterSecurityGroup), Ref(ExistingSecurityGroup)],
         InstanceType=(Ref(ASG01InstanceType)),
         AssociatePublicIpAddress=(Ref(UsePublicIp)),
         IamInstanceProfile=(Ref(RootInstanceProfile)),
@@ -560,7 +576,7 @@ def main():
         'ASG02LaunchConfiguration',
         ImageId=FindInMap("AWSRegionAMI", Ref("AWS::Region"), Ref(OperatingSystem)),
         KeyName=Ref(EC2KeyName),
-        SecurityGroups=[Ref(SecurityGroups)],
+        SecurityGroups=[Ref(ClusterSecurityGroup), Ref(ExistingSecurityGroup)],
         InstanceType=(Ref(ASG02InstanceType)),
         AssociatePublicIpAddress=(Ref(UsePublicIp)),
         IamInstanceProfile=(Ref(RootInstanceProfile)),
