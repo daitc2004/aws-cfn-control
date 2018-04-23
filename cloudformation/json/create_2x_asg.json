@@ -17,6 +17,14 @@
         "True"
       ]
     },
+    "not_existing_sg": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingSecurityGroup"
+        },
+        ""
+      ]
+    },
     "use_public_ip": {
       "Fn::Equals": [
         {
@@ -476,7 +484,8 @@
           },
           "Parameters": [
             "AdditionalBucketName",
-            "EfsId"
+            "EfsId",
+            "SshAccessCidr"
           ]
         }
       ],
@@ -522,6 +531,9 @@
         },
         "OperatingSystem": {
           "default": "Instance OS"
+        },
+        "SshAccessCidr": {
+          "default": "SSH Access CIDR Block"
         },
         "Subnet": {
           "default": "Subnet ID"
@@ -654,8 +666,8 @@
       "Type": "String"
     },
     "ExistingSecurityGroup": {
-      "Description": "Choose an existing Security Group ID",
-      "Type": "AWS::EC2::SecurityGroup::Id"
+      "Description": "Choose an existing Security Group ID, e.g. sg-abcd1234",
+      "Type": "String"
     },
     "OperatingSystem": {
       "AllowedValues": [
@@ -672,6 +684,13 @@
       "ConstraintDescription": "Must be: alinux, alinux2, centos6, centos7, rhel7, suse11, suse12, ubuntu14, ubuntu16",
       "Default": "alinux",
       "Description": "Operating System",
+      "Type": "String"
+    },
+    "SshAccessCidr": {
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "Must be a valid CIDR x.x.x.x/x",
+      "Default": "0.0.0.0/0",
+      "Description": "CIDR Block for SSH access, default 0.0.0.0/0",
       "Type": "String"
     },
     "Subnet": {
@@ -1339,14 +1358,30 @@
         "KeyName": {
           "Ref": "EC2KeyName"
         },
-        "SecurityGroups": [
-          {
-            "Ref": "ClusterSecurityGroup"
-          },
-          {
-            "Ref": "ExistingSecurityGroup"
-          }
-        ],
+        "SecurityGroups": {
+          "Fn::If": [
+            "not_existing_sg",
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              }
+            ],
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              },
+              {
+                "Ref": "ExistingSecurityGroup"
+              }
+            ]
+          ]
+        },
         "UserData": {
           "Fn::Base64": {
             "Fn::Join": [
@@ -2273,14 +2308,30 @@
         "KeyName": {
           "Ref": "EC2KeyName"
         },
-        "SecurityGroups": [
-          {
-            "Ref": "ClusterSecurityGroup"
-          },
-          {
-            "Ref": "ExistingSecurityGroup"
-          }
-        ],
+        "SecurityGroups": {
+          "Fn::If": [
+            "not_existing_sg",
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              }
+            ],
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              },
+              {
+                "Ref": "ExistingSecurityGroup"
+              }
+            ]
+          ]
+        },
         "UserData": {
           "Fn::Base64": {
             "Fn::Join": [
@@ -2682,14 +2733,30 @@
         "FileSystemId": {
           "Ref": "NewEfsFileSystem"
         },
-        "SecurityGroups": [
-          {
-            "Ref": "ClusterSecurityGroup"
-          },
-          {
-            "Ref": "ExistingSecurityGroup"
-          }
-        ],
+        "SecurityGroups": {
+          "Fn::If": [
+            "not_existing_sg",
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              }
+            ],
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              },
+              {
+                "Ref": "ExistingSecurityGroup"
+              }
+            ]
+          ]
+        },
         "SubnetId": {
           "Ref": "Subnet"
         }
@@ -2821,6 +2888,25 @@
         ]
       },
       "Type": "AWS::IAM::Role"
+    },
+    "SshSecurityGroup": {
+      "Properties": {
+        "GroupDescription": "SSH Secuirty group",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "SshAccessCidr"
+            },
+            "FromPort": "22",
+            "IpProtocol": "tcp",
+            "ToPort": "22"
+          }
+        ],
+        "VpcId": {
+          "Ref": "VPCId"
+        }
+      },
+      "Type": "AWS::EC2::SecurityGroup"
     }
   }
 }
