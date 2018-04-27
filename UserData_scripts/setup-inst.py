@@ -197,7 +197,7 @@ if __name__ == "__main__":
 
     log_file = "/var/log/{0}.log".format(progname)
 
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                         datefmt='%m-%d %H:%M',
                         filename=log_file)

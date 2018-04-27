@@ -115,14 +115,44 @@ function setup_gpfs {
 
   mmstartup -a
   echo "Waiting for start to complete"
-  sleep 300
+  sleep 60
 
+  let active_count=1
 
-  mmcrfs gpfs1 -F $nsd_file -B 1M -j cluster -n $num_clients
-  echo "Waiting for FS create"
-  sleep 30
+  while [[ "$active_count" -le 10 ]]; do
+    defined_nodes=$(mmgetstate -s  | grep "Number of nodes defined in the cluster" | awk {'print $NF'})
+    active_nodes=$(mmgetstate -s  | grep "Number of local nodes active in the cluster" | awk {'print $NF'})
+    if [[ "$defined_nodes" = ""  && "$active_nodes" = "" ]]; then
+      echo "No instances are running GPFS"
+      ((mount_count=$mount_count+1))
+      sleep 60
+    elif [[ "$defined_nodes" -eq "$active_nodes" ]]; then
+      echo "Creating the FS"
+      mmcrfs gpfs1 -F $nsd_file -B 1M -j cluster -n $num_clients
+      echo "Waiting for FS create"
+      sleep 30
 
-  mmmount all -a
+      let mount_count=1
+      echo "Mounting on all nodes"
+      mmmount gpfs1 -a
+      while [[ "$mount_count" -le 10 ]]; do
+        mounted_nodes=$(mmlsmount gpfs1 | awk {'print $(NF-1)'})
+        if [[ "$mounted_nodes" -eq "$defined_nodes" ]]; then
+          echo "GPFS setup and FS build complete"
+          return 0
+        else
+          ((mount_count=$mount_count+1))
+          sleep 60
+        fi
+      done
+    else
+      ((active_count=$active_count+1))
+      sleep 60
+    fi
+  done
+
+  echo "Setup GPFS failed"
+  return 1
 
 }
 
