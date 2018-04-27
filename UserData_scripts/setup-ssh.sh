@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-
-set -x
-
 #
 # Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
@@ -15,6 +12,7 @@ set -x
 # License for the specific language governing permissions and limitations under the License.
 #
 
+set -x
 
 function setup_ssh {
 
@@ -85,6 +83,19 @@ function setup_ssh {
   return
 }
 
+function enable_root_ssh {
+
+  echo "${0}: setting up root ssh"
+
+  cp /home/$login_user/.ssh/id_rsa /root/.ssh/
+  cp /home/$login_user/.ssh/id_rsa.pub /root/.ssh/
+  cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+  sed -i.bak 's/PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+  sed -i.bak2 's/#PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+  service sshd restart
+
+}
+
 my_inst_file=/opt/aws/setup-tools/my-instance-info.conf
 
 if [[ $1 ]]; then
@@ -98,5 +109,6 @@ fi
 
 source $my_inst_file
 setup_ssh
+enable_root_ssh
 
 exit 0

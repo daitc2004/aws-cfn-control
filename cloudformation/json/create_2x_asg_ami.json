@@ -440,11 +440,10 @@
             "default": "Instance Configuration"
           },
           "Parameters": [
-            "ASG01InstanceType",
-            "ASG02InstanceType",
-            "OperatingSystem",
             "EC2KeyName",
-            "UsePublicIp"
+            "UsePublicIp",
+            "AmiId",
+            "OperatingSystem"
           ]
         },
         {
@@ -454,8 +453,7 @@
           "Parameters": [
             "VPCId",
             "Subnet",
-            "ExistingSecurityGroup",
-            "CreateElasticIP"
+            "ExistingSecurityGroup"
           ]
         },
         {
@@ -463,9 +461,8 @@
             "default": "First AutoScaling Group Configuration"
           },
           "Parameters": [
-            "ASG01ClusterSize",
-            "ASG01MaxClusterSize",
-            "ASG01MinClusterSize"
+            "ASG01InstanceType",
+            "ASG01ClusterSize"
           ]
         },
         {
@@ -473,9 +470,8 @@
             "default": "Second AutoScaling Group Configuration"
           },
           "Parameters": [
-            "ASG02ClusterSize",
-            "ASG02MaxClusterSize",
-            "ASG02MinClusterSize"
+            "ASG02InstanceType",
+            "ASG02ClusterSize"
           ]
         },
         {
@@ -496,26 +492,17 @@
         "ASG01InstanceType": {
           "default": "ASG 01 Instance Type"
         },
-        "ASG01MaxClusterSize": {
-          "default": "Max ASG 01 cluster size"
-        },
-        "ASG01MinClusterSize": {
-          "default": "Min ASG 01 cluster size"
-        },
         "ASG02ClusterSize": {
           "default": "Initial ASG 02 cluster size"
         },
         "ASG02InstanceType": {
           "default": "ASG 02 Instance Type"
         },
-        "ASG02MaxClusterSize": {
-          "default": "Max ASG 02 cluster size"
-        },
-        "ASG02MinClusterSize": {
-          "default": "Min ASG 02 cluster size"
-        },
         "AdditionalBucketName": {
           "default": "Additional Bucket"
+        },
+        "AmiId": {
+          "default": "AMI ID"
         },
         "CreateElasticIP": {
           "default": "Create and Elaastic IP"
@@ -530,7 +517,7 @@
           "default": "Existing Security Group"
         },
         "OperatingSystem": {
-          "default": "Instance OS"
+          "default": "Operating System of AMI"
         },
         "SshAccessCidr": {
           "default": "SSH Access CIDR Block"
@@ -564,40 +551,12 @@
     },
     "ASG01InstanceType": {
       "AllowedValues": [
-        "c3.4xlarge",
-        "c3.8xlarge",
-        "c4.4xlarge",
-        "c4.8xlarge",
-        "c5.18xlarge",
-        "i3.8xlarge",
-        "i3.16xlarge",
-        "m4.10xlarge",
-        "m4.16xlarge",
-        "m5.12xlarge",
-        "m5.24xlarge",
-        "r3.4xlarge",
-        "r3.8xlarge",
-        "r4.4xlarge",
-        "r4.8xlarge",
-        "r4.16xlarge",
-        "t2.2xlarge"
+        "i3.16xlarge"
       ],
       "ConstraintDescription": "Must be a valid instance type for that region, with HVM64 support",
-      "Default": "c4.8xlarge",
+      "Default": "i3.16xlarge",
       "Description": "First AutoScaling Group instance type",
       "Type": "String"
-    },
-    "ASG01MaxClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "2",
-      "Description": "ASG 01 Max number of instances that can be launch in the ASG",
-      "Type": "Number"
-    },
-    "ASG01MinClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "0",
-      "Description": "ASG 01 Min number of instances that can be launch in the ASG (should be left at 0)",
-      "Type": "Number"
     },
     "ASG02ClusterSize": {
       "ConstraintDescription": "Should be an integer",
@@ -607,22 +566,10 @@
     },
     "ASG02InstanceType": {
       "AllowedValues": [
-        "c3.4xlarge",
-        "c3.8xlarge",
-        "c4.4xlarge",
         "c4.8xlarge",
         "c5.18xlarge",
-        "i3.8xlarge",
-        "i3.16xlarge",
-        "m4.10xlarge",
-        "m4.16xlarge",
         "m5.12xlarge",
         "m5.24xlarge",
-        "r3.4xlarge",
-        "r3.8xlarge",
-        "r4.4xlarge",
-        "r4.8xlarge",
-        "r4.16xlarge",
         "t2.2xlarge"
       ],
       "ConstraintDescription": "Must be a valid instance type for that region, with HVM64 support",
@@ -630,20 +577,15 @@
       "Description": "Second AutoScaling Group instance type",
       "Type": "String"
     },
-    "ASG02MaxClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "2",
-      "Description": "ASG 02 Max number of instances that can be launch in the ASG",
-      "Type": "Number"
-    },
-    "ASG02MinClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "0",
-      "Description": "ASG 02 Min number of instances that can be launch in the ASG (should be left at 0)",
-      "Type": "Number"
-    },
     "AdditionalBucketName": {
       "Description": "Additional bucket for other files.",
+      "Type": "String"
+    },
+    "AmiId": {
+      "AllowedPattern": "(ami-[0-9a-f]{8})",
+      "ConstraintDescription": "Must be a valid AMI in the current region",
+      "Default": "ami-ca10a1b5",
+      "Description": "Valid AMI in the current region (ami-xxxxxxxx)",
       "Type": "String"
     },
     "CreateElasticIP": {
@@ -682,7 +624,7 @@
         "ubuntu16"
       ],
       "ConstraintDescription": "Must be: alinux, alinux2, centos6, centos7, rhel7, suse11, suse12, ubuntu14, ubuntu16",
-      "Default": "alinux",
+      "Default": "rhel7",
       "Description": "Operating System",
       "Type": "String"
     },
@@ -1356,15 +1298,7 @@
           "Ref": "RootInstanceProfile"
         },
         "ImageId": {
-          "Fn::FindInMap": [
-            "AWSRegionAMI",
-            {
-              "Ref": "AWS::Region"
-            },
-            {
-              "Ref": "OperatingSystem"
-            }
-          ]
+          "Ref": "AmiId"
         },
         "InstanceType": {
           "Ref": "ASG01InstanceType"
@@ -1629,7 +1563,17 @@
                 "\n",
                 "function inst_pkgs {\n",
                 "  echo \"${0}: Installing additional packages\"\n",
-                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc\n",
+                "  yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc nfs-utils ksh\n",
+                "  yum -y update aws-cfn-bootstrap\n",
+                "  pip install boto3\n",
+                "}\n",
+                "\n",
+                "function inst_dev_pkgs {\n",
+                "  echo \"${0}: Installing development packages\"\n",
+                "  yum -y groupinstall \"Development Tools\"\n",
+                "  yum -y install kernel-devel cpp gcc gcc-c++ rpm-build kernel-headers\n",
+                "  yum -y install \"kernel-devel-uname-r == $(uname -r)\"\n",
                 "}\n",
                 "\n",
                 "function fix_boot_disable_ht() {\n",
@@ -1883,11 +1827,11 @@
                 "  install_awscli\n",
                 "fi\n",
                 "\n",
-                "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc nfs-utils ksh -y\n",
-                "yum update aws-cfn-bootstrap -y\n",
+                "if [[ ! -e /opt/aws/setup-tools/pre_installed ]]; then\n",
+                "  inst_pkgs\n",
+                "  ##inst_dev_pkgs\n",
+                "fi\n",
                 "\n",
-                "inst_pkgs\n",
                 "mount_efs\n",
                 "disable_ht\n",
                 "change_tsc\n",
@@ -2571,15 +2515,7 @@
           "Ref": "RootInstanceProfile"
         },
         "ImageId": {
-          "Fn::FindInMap": [
-            "AWSRegionAMI",
-            {
-              "Ref": "AWS::Region"
-            },
-            {
-              "Ref": "OperatingSystem"
-            }
-          ]
+          "Ref": "AmiId"
         },
         "InstanceType": {
           "Ref": "ASG02InstanceType"
@@ -2844,7 +2780,17 @@
                 "\n",
                 "function inst_pkgs {\n",
                 "  echo \"${0}: Installing additional packages\"\n",
-                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc\n",
+                "  yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc nfs-utils ksh\n",
+                "  yum -y update aws-cfn-bootstrap\n",
+                "  pip install boto3\n",
+                "}\n",
+                "\n",
+                "function inst_dev_pkgs {\n",
+                "  echo \"${0}: Installing development packages\"\n",
+                "  yum -y groupinstall \"Development Tools\"\n",
+                "  yum -y install kernel-devel cpp gcc gcc-c++ rpm-build kernel-headers\n",
+                "  yum -y install \"kernel-devel-uname-r == $(uname -r)\"\n",
                 "}\n",
                 "\n",
                 "function fix_boot_disable_ht() {\n",
@@ -3098,11 +3044,11 @@
                 "  install_awscli\n",
                 "fi\n",
                 "\n",
-                "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc nfs-utils ksh -y\n",
-                "yum update aws-cfn-bootstrap -y\n",
+                "if [[ ! -e /opt/aws/setup-tools/pre_installed ]]; then\n",
+                "  inst_pkgs\n",
+                "  ##inst_dev_pkgs\n",
+                "fi\n",
                 "\n",
-                "inst_pkgs\n",
                 "mount_efs\n",
                 "disable_ht\n",
                 "change_tsc\n",
@@ -3147,7 +3093,7 @@
       "CreationPolicy": {
         "ResourceSignal": {
           "Count": {
-            "Ref": "ASG01MinClusterSize"
+            "Ref": "ASG01ClusterSize"
           },
           "Timeout": "PT60M"
         }
@@ -3161,10 +3107,10 @@
           "Ref": "ASG01LaunchConfiguration"
         },
         "MaxSize": {
-          "Ref": "ASG01MaxClusterSize"
+          "Ref": "ASG01ClusterSize"
         },
         "MinSize": {
-          "Ref": "ASG01MinClusterSize"
+          "Ref": "ASG01ClusterSize"
         },
         "PlacementGroup": {
           "Ref": "PlacementGroup"
@@ -3181,7 +3127,7 @@
       "CreationPolicy": {
         "ResourceSignal": {
           "Count": {
-            "Ref": "ASG02MinClusterSize"
+            "Ref": "ASG02ClusterSize"
           },
           "Timeout": "PT60M"
         }
@@ -3195,10 +3141,10 @@
           "Ref": "ASG02LaunchConfiguration"
         },
         "MaxSize": {
-          "Ref": "ASG02MaxClusterSize"
+          "Ref": "ASG02ClusterSize"
         },
         "MinSize": {
-          "Ref": "ASG02MinClusterSize"
+          "Ref": "ASG02ClusterSize"
         },
         "PlacementGroup": {
           "Ref": "PlacementGroup"

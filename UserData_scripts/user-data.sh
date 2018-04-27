@@ -94,13 +94,13 @@ function build_host_file {
   let sleep_time=5
 
   export WCOLL=$home_dir/hosts.all
-  let total_instances=$(/bin/su $login_user -c "pdsh date 2>/dev/null | wc -l")
-  while [[ "$total_instances" -lt "$init_cluster_size" ]]; do
+  let running_instances=$(/bin/su $login_user -c "pdsh date 2>/dev/null | wc -l")
+  while [[ "$running_instances" -lt "$total_instances" ]]; do
     echo "Updating host info ..."
     /bin/su $login_user -c $setup_tools_dir/updatehostinfo.sh
     echo "Running 'pdsh date' to determine reachable instance count"
-    let total_instances=$(/bin/su $login_user -c "pdsh date 2>/dev/null | wc -l")
-    if [[ "$total_instances" -lt "$init_cluster_size" ]]; then
+    let running_instances=$(/bin/su $login_user -c "pdsh date 2>/dev/null | wc -l")
+    if [[ "$runnin_instances" -lt "$total_instances" ]]; then
         /bin/su $login_user -c "pdsh date 2>&1 | grep 'Connection refused' | awk {'print $6'} > ~/hosts.unreachable"
     fi
     sleep $sleep_time
@@ -141,6 +141,261 @@ function mount_efs {
   return
 }
 
+function inst_pkgs {
+  echo "${0}: Installing additional packages"
+  yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc nfs-utils ksh
+  yum -y update aws-cfn-bootstrap
+  pip install boto3
+}
+
+function inst_dev_pkgs {
+  echo "${0}: Installing development packages"
+  yum -y groupinstall "Development Tools"
+  yum -y install kernel-devel cpp gcc gcc-c++ rpm-build kernel-headers
+  yum -y install "kernel-devel-uname-r == $(uname -r)"
+}
+
+function fix_boot_disable_ht() {
+
+  echo "${0} Updating kernel line"
+
+  if [[ -x /sbin/grubby ]] ; then
+      /sbin/grubby --update-kernel=ALL --args=maxcpus=$total_cores
+  fi
+
+  if [ -e /etc/default/grub ]; then
+
+      if grep -q maxcpus /etc/default/grub; then
+          sed -i "s/maxcpus=[0-9]*/maxcpus=$total_cores/g" /etc/default/grub
+      else
+          sed -i "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\"$/ maxcpus=$total_cores\"/" /etc/default/grub
+          sed -i "/^GRUB_CMDLINE_LINUX=/ s/\"$/ maxcpus=$total_cores\"/" /etc/default/grub
+      fi
+
+      if [ -e /etc/grub2.cfg ]; then
+          grub2-mkconfig > /etc/grub2.cfg
+      fi
+
+      if which update-grub; then
+          update-grub
+      fi
+  fi
+
+}
+
+function disable_ht {
+  echo "${0}: disabling HT"
+
+  parent_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f1 | cut -d- -f1 | tr '-' '\n' | tr ',' '\n'| sort -un)
+
+  # If there are no parents, HT is probably already disabled.
+  if [ "$parent_cores" == "" ]; then
+              parent_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list)
+  fi
+
+  total_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f1 | cut -d- -f1 | tr '-' '\n' | tr ',' '\n'| sort -un | wc -l)
+  sibling_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f2- | cut -d- -f2- | tr '-' '\n' | tr ',' '\n'| sort -un)
+
+  # Ensure enabled cores are enabled - starting at 1, cpu0 can't be changed
+  for p in $parent_cores; do
+      if [ $p -ne 0 ]; then
+          echo 1 > /sys/devices/system/cpu/cpu${p}/online
+      fi
+  done
+
+  if [ "$parent_cores" == "$sibling_cores" ]; then
+      echo "Hyperthreading already disabled"
+  else
+      # Ensure disabled threads are actually disabled
+      for s in $sibling_cores; do
+          echo 0 > /sys/devices/system/cpu/cpu${s}/online
+      done
+  fi
+
+  fix_boot_disable_ht
+
+}
+
+function fix_boot_clocksource() {
+
+    echo "${0} Updating kernel line with clocksource=tsc"
+
+    if [[ -x /sbin/grubby ]] ; then
+        /sbin/grubby --update-kernel=ALL --args=clocksource=tsc
+    fi
+
+    if [ -e /etc/default/grub ]; then
+
+        if grep -q "clocksource=tsc" /etc/default/grub; then
+            exit 0
+        else
+            sed -i '/^GRUB\_CMDLINE\_LINUX_DEFAULT/s/\"$/\ clocksource=tsc\"/' /etc/default/grub
+            sed -i '/^GRUB\_CMDLINE\_LINUX/s/\"$/\ clocksource=tsc\"/' /etc/default/grub
+        fi
+
+        if [ -e /etc/grub2.cfg ]; then
+            grub2-mkconfig > /etc/grub2.cfg
+        fi
+
+        if [ -e /boot/grub2/grub.cfg ]; then
+            grub2-mkconfig -o /boot/grub2/grub.cfg
+        fi
+
+        if which update-grub; then
+            update-grub
+        fi
+    fi
+}
+
+function fix_boot_net_iname() {
+
+    echo "${0} Updating kernel line with net.ifnames=0"
+
+    if [[ -x /sbin/grubby ]] ; then
+        /sbin/grubby --update-kernel=ALL --args=net.ifnames=0
+    fi
+
+    if [ -e /etc/default/grub ]; then
+
+        if grep -q "net.ifnames" /etc/default/grub; then
+            exit 0
+        else
+            sed -i '/^GRUB\_CMDLINE\_LINUX_DEFAULT/s/\"$/\ net\.ifnames\=0\"/' /etc/default/grub
+            sed -i '/^GRUB\_CMDLINE\_LINUX/s/\"$/\ net\.ifnames\=0\"/' /etc/default/grub
+        fi
+
+        if [ -e /etc/grub2.cfg ]; then
+            grub2-mkconfig > /etc/grub2.cfg
+        fi
+
+        if [ -e /boot/grub2/grub.cfg ]; then
+            grub2-mkconfig -o /boot/grub2/grub.cfg
+        fi
+
+        if which update-grub; then
+            update-grub
+        fi
+    fi
+}
+
+function change_tsc {
+  echo "${0}: changing tsc"
+  # Switch the clock source to TSC
+  echo "tsc" > /sys/devices/system/clocksource/clocksource0/current_clocksource
+  fix_boot_clocksource
+}
+
+function net_settings {
+echo "${0}: changing network settings"
+# Set TCP windows
+cat >>/etc/sysctl.conf << EOF
+
+
+## Custom network settings
+net.core.netdev_max_backlog   = 1000000
+
+net.core.rmem_default = 124928
+net.core.rmem_max     = 67108864
+net.core.wmem_default = 124928
+net.core.wmem_max     = 67108864
+
+net.ipv4.tcp_keepalive_time   = 1800
+net.ipv4.tcp_mem      = 12184608        16246144        24369216
+net.ipv4.tcp_rmem     = 4194304 8388608 67108864
+net.ipv4.tcp_syn_retries      = 5
+net.ipv4.tcp_wmem     = 4194304 8388608 67108864
+EOF
+
+sysctl -p
+
+}
+
+function set_custom_ulimts {
+
+echo "${0}: setting ulimits"
+
+# Set ulimits
+cat >>/etc/security/limits.conf << EOF
+# core file size (blocks, -c) 0
+*           hard    core           0
+*           soft    core           0
+
+# data seg size (kbytes, -d) unlimited
+*           hard    data           unlimited
+*           soft    data           unlimited
+
+# scheduling priority (-e) 0
+*           hard    priority       0
+*           soft    priority       0
+
+# file size (blocks, -f) unlimited
+*           hard    fsize          unlimited
+*           soft    fsize          unlimited
+
+# pending signals (-i) 256273
+*           hard    sigpending     1015390
+*           soft    sigpending     1015390
+
+# max locked memory (kbytes, -l) unlimited
+*           hard    memlock        unlimited
+*           soft    memlock        unlimited
+
+# open files (-n) 1024
+*           hard    nofile         65536
+*           soft    nofile         65536
+
+# POSIX message queues (bytes, -q) 819200
+*           hard    msgqueue       819200
+*           soft    msgqueue       819200
+
+# real-time priority (-r) 0
+*           hard    rtprio         0
+*           soft    rtprio         0
+
+# stack size (kbytes, -s) unlimited
+*           hard    stack          unlimited
+*           soft    stack          unlimited
+
+# cpu time (seconds, -t) unlimited
+*           hard    cpu            unlimited
+*           soft    cpu            unlimited
+
+# max user processes (-u) 1024
+*           soft    nproc          16384
+*           hard    nproc          16384
+
+# file locks (-x) unlimited
+*           hard    locks          unlimited
+*           soft    locks          unlimited
+EOF
+
+}
+
+function setup_shell {
+echo "${0}: shell setupt"
+
+# setup shell
+cat >>/home/$USER/.bash_profile << EOF
+
+set -o vi
+export EDITOR=vi
+
+EOF
+
+}
+
+### Main ###
+
+OS=$(cat /etc/redhat-release  | awk {'print $1'})
+
+if [[ "$OS" = "CentOS" ]]; then
+  USER=centos
+else
+  USER=ec2-user
+fi
+
+
 my_inst_file=$setup_tools_dir/my-instance-info.conf
 source $my_inst_file
 
@@ -152,11 +407,17 @@ if [[ "$operating_system" = "rhel7" ]]; then
   install_awscli
 fi
 
-yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y
-yum install psmisc nfs-utils ksh -y
-yum update aws-cfn-bootstrap -y
+if [[ ! -e /opt/aws/setup-tools/pre_installed ]]; then
+  inst_pkgs
+  ##inst_dev_pkgs
+fi
 
 mount_efs
+disable_ht
+change_tsc
+net_settings
+set_custom_ulimts
+setup_shell
 
 CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep "/opt/aws/apitools/.*/bin/cfn-init$")
 $CFN_INIT -v --stack $stack_name --resource $launch_config --region $region
@@ -168,16 +429,22 @@ if [[ "$cfn_init_rc" != 0 ]]; then
   shutdown now
 fi
 
-# run environment setup and main function
+# run environment setup and main function, to include assigning and saving EIP
 #  includes ssh_setup
 $setup_tools_dir/setup-main.sh $my_inst_file
 setup_main_rc=$?
 
+source $my_inst_file
+
 if [[ "$my_instance_id" = "$eip_instance" ]]; then
+  echo "Should have $total_instances instances"
   build_host_file
 fi
 
-cfn_sig_error_code=$setup_main_rc
+$setup_tools_dir/gpfs-setup.sh
+gpfs_rc=$?
+
+cfn_sig_error_code=$gpfs_rc
 
 CFN_SIG=$(echo -n $(rpm -ql aws-cfn-bootstrap | grep "/opt/aws/apitools/.*/bin/cfn-signal$"))   # using echo -n to remove cr
 $CFN_SIG -e $cfn_sig_error_code --stack $stack_name --resource $asg_name --region $region

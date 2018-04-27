@@ -488,13 +488,6 @@ def main():
                             group=FindInMap("OSInfo", "LoginID" , Ref('OperatingSystem')),
                             encoding="base64"
                         ),
-                        "{0}/gpfs-setup.sh".format(setup_tools_dir): cloudformation.InitFile(
-                            content=userdata.from_file('../UserData_scripts/gpfs-setup.sh'),
-                            mode="000700",
-                            owner=FindInMap("OSInfo", "LoginID" , Ref('OperatingSystem')),
-                            group=FindInMap("OSInfo", "LoginID" , Ref('OperatingSystem')),
-                            encoding="base64"
-                        ),
                         "{0}/setup-main.sh".format(setup_tools_dir): cloudformation.InitFile(
                             content=Join('', [
                                 '#!/bin/bash -x\n',
@@ -595,13 +588,6 @@ def main():
                         ),
                         "{0}/updatehostinfo.sh".format(setup_tools_dir): cloudformation.InitFile(
                             content=userdata.from_file('../UserData_scripts/updatehostinfo.sh'),
-                            mode="000700",
-                            owner=FindInMap("OSInfo", "LoginID" , Ref('OperatingSystem')),
-                            group=FindInMap("OSInfo", "LoginID" , Ref('OperatingSystem')),
-                            encoding="base64"
-                        ),
-                        "{0}/gpfs-setup.sh".format(setup_tools_dir): cloudformation.InitFile(
-                            content=userdata.from_file('../UserData_scripts/gpfs-setup.sh'),
                             mode="000700",
                             owner=FindInMap("OSInfo", "LoginID" , Ref('OperatingSystem')),
                             group=FindInMap("OSInfo", "LoginID" , Ref('OperatingSystem')),
