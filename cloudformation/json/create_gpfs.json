@@ -440,11 +440,10 @@
             "default": "Instance Configuration"
           },
           "Parameters": [
-            "ASG01InstanceType",
-            "ASG02InstanceType",
-            "OperatingSystem",
             "EC2KeyName",
-            "UsePublicIp"
+            "UsePublicIp",
+            "AmiId",
+            "OperatingSystem"
           ]
         },
         {
@@ -454,8 +453,7 @@
           "Parameters": [
             "VPCId",
             "Subnet",
-            "ExistingSecurityGroup",
-            "CreateElasticIP"
+            "ExistingSecurityGroup"
           ]
         },
         {
@@ -463,9 +461,8 @@
             "default": "First AutoScaling Group Configuration"
           },
           "Parameters": [
-            "ASG01ClusterSize",
-            "ASG01MaxClusterSize",
-            "ASG01MinClusterSize"
+            "ASG01InstanceType",
+            "ASG01ClusterSize"
           ]
         },
         {
@@ -473,9 +470,8 @@
             "default": "Second AutoScaling Group Configuration"
           },
           "Parameters": [
-            "ASG02ClusterSize",
-            "ASG02MaxClusterSize",
-            "ASG02MinClusterSize"
+            "ASG02InstanceType",
+            "ASG02ClusterSize"
           ]
         },
         {
@@ -496,26 +492,17 @@
         "ASG01InstanceType": {
           "default": "ASG 01 Instance Type"
         },
-        "ASG01MaxClusterSize": {
-          "default": "Max ASG 01 cluster size"
-        },
-        "ASG01MinClusterSize": {
-          "default": "Min ASG 01 cluster size"
-        },
         "ASG02ClusterSize": {
           "default": "Initial ASG 02 cluster size"
         },
         "ASG02InstanceType": {
           "default": "ASG 02 Instance Type"
         },
-        "ASG02MaxClusterSize": {
-          "default": "Max ASG 02 cluster size"
-        },
-        "ASG02MinClusterSize": {
-          "default": "Min ASG 02 cluster size"
-        },
         "AdditionalBucketName": {
           "default": "Additional Bucket"
+        },
+        "AmiId": {
+          "default": "AMI ID"
         },
         "CreateElasticIP": {
           "default": "Create and Elaastic IP"
@@ -530,7 +517,7 @@
           "default": "Existing Security Group"
         },
         "OperatingSystem": {
-          "default": "Instance OS"
+          "default": "Operating System of AMI"
         },
         "SshAccessCidr": {
           "default": "SSH Access CIDR Block"
@@ -564,40 +551,12 @@
     },
     "ASG01InstanceType": {
       "AllowedValues": [
-        "c3.4xlarge",
-        "c3.8xlarge",
-        "c4.4xlarge",
-        "c4.8xlarge",
-        "c5.18xlarge",
-        "i3.8xlarge",
-        "i3.16xlarge",
-        "m4.10xlarge",
-        "m4.16xlarge",
-        "m5.12xlarge",
-        "m5.24xlarge",
-        "r3.4xlarge",
-        "r3.8xlarge",
-        "r4.4xlarge",
-        "r4.8xlarge",
-        "r4.16xlarge",
-        "t2.2xlarge"
+        "i3.16xlarge"
       ],
       "ConstraintDescription": "Must be a valid instance type for that region, with HVM64 support",
-      "Default": "c4.8xlarge",
+      "Default": "i3.16xlarge",
       "Description": "First AutoScaling Group instance type",
       "Type": "String"
-    },
-    "ASG01MaxClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "2",
-      "Description": "ASG 01 Max number of instances that can be launch in the ASG",
-      "Type": "Number"
-    },
-    "ASG01MinClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "0",
-      "Description": "ASG 01 Min number of instances that can be launch in the ASG (should be left at 0)",
-      "Type": "Number"
     },
     "ASG02ClusterSize": {
       "ConstraintDescription": "Should be an integer",
@@ -607,22 +566,10 @@
     },
     "ASG02InstanceType": {
       "AllowedValues": [
-        "c3.4xlarge",
-        "c3.8xlarge",
-        "c4.4xlarge",
         "c4.8xlarge",
         "c5.18xlarge",
-        "i3.8xlarge",
-        "i3.16xlarge",
-        "m4.10xlarge",
-        "m4.16xlarge",
         "m5.12xlarge",
         "m5.24xlarge",
-        "r3.4xlarge",
-        "r3.8xlarge",
-        "r4.4xlarge",
-        "r4.8xlarge",
-        "r4.16xlarge",
         "t2.2xlarge"
       ],
       "ConstraintDescription": "Must be a valid instance type for that region, with HVM64 support",
@@ -630,20 +577,15 @@
       "Description": "Second AutoScaling Group instance type",
       "Type": "String"
     },
-    "ASG02MaxClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "2",
-      "Description": "ASG 02 Max number of instances that can be launch in the ASG",
-      "Type": "Number"
-    },
-    "ASG02MinClusterSize": {
-      "ConstraintDescription": "Should be an integer",
-      "Default": "0",
-      "Description": "ASG 02 Min number of instances that can be launch in the ASG (should be left at 0)",
-      "Type": "Number"
-    },
     "AdditionalBucketName": {
       "Description": "Additional bucket for other files.",
+      "Type": "String"
+    },
+    "AmiId": {
+      "AllowedPattern": "(ami-[0-9a-f]{8})",
+      "ConstraintDescription": "Must be a valid AMI in the current region",
+      "Default": "ami-ca10a1b5",
+      "Description": "Valid AMI in the current region (ami-xxxxxxxx)",
       "Type": "String"
     },
     "CreateElasticIP": {
@@ -682,7 +624,7 @@
         "ubuntu16"
       ],
       "ConstraintDescription": "Must be: alinux, alinux2, centos6, centos7, rhel7, suse11, suse12, ubuntu14, ubuntu16",
-      "Default": "alinux",
+      "Default": "rhel7",
       "Description": "Operating System",
       "Type": "String"
     },
@@ -808,6 +750,282 @@
                         "    except KeyboardInterrupt:\n",
                         "        print 'Received Keyboard interrupt.'\n",
                         "        print 'Exiting...'\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              },
+              "/opt/aws/setup-tools/gpfs-setup.sh": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env bash\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "\n",
+                        "set -x\n",
+                        "\n",
+                        "\n",
+                        "function ior_setup {\n",
+                        "\n",
+                        "  # for build on local host\n",
+                        "  yum groupinstall \"Development Tools\" -y\n",
+                        "\n",
+                        "  echo \"export PATH=$PATH:/usr/lib64/openmpi/bin\" >> ~/.bash_profile\n",
+                        "  echo \"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/openmpi/lib/\" >> ~/.bash_profile\n",
+                        "\n",
+                        "  echo \"export PATH=$PATH:/usr/lib64/openmpi/bin\" >> ~/.bashrc\n",
+                        "  echo \"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/openmpi/lib/\" >> ~/.bashrc\n",
+                        "\n",
+                        "  source ~/.bash_profile\n",
+                        "  export PATH=$PATH:/usr/lib64/openmpi/bin\n",
+                        "  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/openmpi/lib/\n",
+                        "\n",
+                        "  pushd /tmp\n",
+                        "  git clone https://github.com/chaos/ior.git\n",
+                        "  cd ior\n",
+                        "  ./bootstrap\n",
+                        "  ./configure LIBS=/usr/lpp/mmfs/lib/libgpfs.so\n",
+                        "  make\n",
+                        "  sudo cp src/ior /usr/local/bin/\n",
+                        "  popd\n",
+                        "\n",
+                        "  ior_version=$(/usr/local/bin/ior | head -1)\n",
+                        "  if [[ \"$ior_version\" == \"IOR-3.0.1: MPI Coordinated Test of Parallel I/O\" ]]; then\n",
+                        "    echo \"IOR Successfully build, copying binary to all hosts\"\n",
+                        "    pdcp /usr/local/bin/ior /usr/local/bin/ior\n",
+                        "  else\n",
+                        "    echo \"IOR Failed to build\"\n",
+                        "  fi\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function enable_root_ssh {\n",
+                        "\n",
+                        "  echo \"${0}: setting up root ssh\"\n",
+                        "\n",
+                        "  cp /home/$USER/.ssh/id_rsa /root/.ssh/\n",
+                        "  cp /home/$USER/.ssh/id_rsa.pub /root/.ssh/\n",
+                        "  cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys\n",
+                        "  sed -i.bak 's/PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  sed -i.bak2 's/#PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  service sshd restart\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function create_nsddevices_file {\n",
+                        "\n",
+                        "cat <<'EOF' >> /var/mmfs/etc/nsddevices\n",
+                        "#!/bin/ksh\n",
+                        "\n",
+                        "osName=$(/bin/uname -s)\n",
+                        "\n",
+                        "if [[ $osName = Linux ]]\n",
+                        "then\n",
+                        "  : # Add function to discover disks in the Linux environment.\n",
+                        "  ls -l /dev/mpath/ 2>/dev/null | awk '{print \"mpath/\"$9 \" generic\"}'\n",
+                        "  ls -l /dev/mapper/ 2>/dev/null | awk '{print \"mapper/\"$9 \" generic\"}'\n",
+                        "  ls -1 /dev/vd* 2>/dev/null | awk -F '/' '{print \"\"$3 \" generic\"}'\n",
+                        "  ls -1 /dev/xvd* 2>/dev/null | awk -F '/' '{print \"\"$3 \" generic\"}'    ## ***Added for AWS devices***\n",
+                        "  ls -1 /dev/nvme* 2>/dev/null | awk -F '/' '{print \"\"$3 \" generic\"}'    ## ***Added for AWS devices***\n",
+                        "fi\n",
+                        "\n",
+                        "# To bypass the GPFS disk discovery (/usr/lpp/mmfs/bin/mmdevdiscover),\n",
+                        "return 0\n",
+                        "\n",
+                        "# To continue with the GPFS disk discovery steps,\n",
+                        "# return 1\n",
+                        "\n",
+                        "EOF\n",
+                        "\n",
+                        "pdcp /var/mmfs/etc/nsddevices /var/mmfs/etc/nsddevices\n",
+                        "pdsh \"chmod 544 /var/mmfs/etc/nsddevices\"\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function setup_gpfs {\n",
+                        "\n",
+                        "  num_clients=$(cat $clients_file | wc -l)\n",
+                        "\n",
+                        "  mmcrcluster -N $cluster_file -r /usr/bin/ssh -R /usr/bin/scp -C gpfs1 -A\n",
+                        "  echo \"Waiting for mmcrcluster to complete\"\n",
+                        "  sleep 5\n",
+                        "\n",
+                        "  mmchlicense server --accept -N all\n",
+                        "\n",
+                        "  mmchconfig maxMBpS=12000\n",
+                        "  mmchconfig pagepool=32G\n",
+                        "  mmchconfig nsdSmallThreadRatio=1\n",
+                        "  mmchconfig nsdMaxWorkerThreads=2048\n",
+                        "  mmchconfig nsdMultiQueue=512\n",
+                        "\n",
+                        "  mmcrnsd -F $nsd_file\n",
+                        "  echo \"Waiting for nsd create\"\n",
+                        "  sleep 30\n",
+                        "\n",
+                        "  create_nsddevices_file\n",
+                        "\n",
+                        "  mmstartup -a\n",
+                        "  echo \"Waiting for start to complete\"\n",
+                        "  sleep 300\n",
+                        "\n",
+                        "\n",
+                        "  mmcrfs gpfs1 -F $nsd_file -B 1M -j cluster -n $num_clients\n",
+                        "  echo \"Waiting for FS create\"\n",
+                        "  sleep 30\n",
+                        "\n",
+                        "  mmmount all -a\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function ior_runs {\n",
+                        "\n",
+                        "  # IOR shown with two instances, each has two sockets\n",
+                        "  # large file\n",
+                        "  mpirun --allow-run-as-root --map-by node --report-bindings --hostfile /root/gpfs.clients -wdir /gpfs/gpfs1 -np 16 ior -v -g -e -w -b 10g -F -z -t 1M\n",
+                        "\n",
+                        "  # small file\n",
+                        "  mpirun --allow-run-as-root --map-by node --report-bindings --hostfile /root/gpfs.clients -wdir /gpfs/gpfs1 -np 16 ior -v -g -e -w -b 10g -F -t 4k\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function build_host_files {\n",
+                        "\n",
+                        "echo \"Building host files\"\n",
+                        "\n",
+                        "  servers=$(pdsh \"grep AutoScalingGroup01 /opt/aws/setup-tools/my-instance-info.conf\" 2>/dev/null | awk {'print $1'} | sed s/://)\n",
+                        "  clients=$(pdsh \"grep AutoScalingGroup02 /opt/aws/setup-tools/my-instance-info.conf\" 2>/dev/null | awk {'print $1'} | sed s/://)\n",
+                        "\n",
+                        "  cluster_file=/root/gpfs.cluster\n",
+                        "  servers_file=/root/gpfs.servers\n",
+                        "  clients_file=/root/gpfs.clients\n",
+                        "\n",
+                        "  rm $cluster_file $servers_file $clients_file\n",
+                        "\n",
+                        "  let count=1\n",
+                        "  for s in $servers; do\n",
+                        "    if [[ \"$count\" -lt 8 ]]; then\n",
+                        "      echo ${s}:manager-quorum >> $cluster_file\n",
+                        "    else\n",
+                        "      echo ${s} >>  $cluster_file\n",
+                        "    fi\n",
+                        "    echo ${s} >> $servers_file\n",
+                        "    ((count=$count+1))\n",
+                        "  done\n",
+                        "\n",
+                        "  let count=1\n",
+                        "  for c in $clients; do\n",
+                        "    if [[ \"$count\" -eq 1 ]]; then\n",
+                        "      echo ${c}:quorum >> $cluster_file\n",
+                        "    else\n",
+                        "      echo ${c} >> $cluster_file\n",
+                        "    fi\n",
+                        "    echo ${c} >> $clients_file\n",
+                        "    ((count=$count+1))\n",
+                        "  done\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function build_nsd_file {\n",
+                        "\n",
+                        "  nsd_file=/root/gpfs.nsd\n",
+                        "  rm $nsd_file\n",
+                        "\n",
+                        "  let tot_disks=8\n",
+                        "  let nsd_num=0\n",
+                        "  fg=100\n",
+                        "\n",
+                        "  for s in $servers; do\n",
+                        "    let disk_num=0\n",
+                        "    while [[ \"$disk_num\" -lt \"$tot_disks\" ]]; do\n",
+                        "      echo \"%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
+                        "      ((disk_num=$disk_num+1))\n",
+                        "      ((nsd_num=$nsd_num+1))\n",
+                        "    done\n",
+                        "\n",
+                        "    if [[ \"$fg\" == \"100\" ]]; then\n",
+                        "       fg=200\n",
+                        "    else\n",
+                        "       fg=100\n",
+                        "    fi\n",
+                        "\n",
+                        "  done\n",
+                        "}\n",
+                        "\n",
+                        "function add_keys {\n",
+                        "\n",
+                        "  for h in $(cat /root/hosts.all); do\n",
+                        "    ssh -o StrictHostKeyChecking=no $h date > /dev/null\n",
+                        "    ssh -o StrictHostKeyChecking=no ${h}.ec2.internal date > /dev/null\n",
+                        "  done\n",
+                        "\n",
+                        "  pdcp /root/.ssh/known_hosts /root/.ssh/known_hosts\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "source /opt/aws/setup-tools/my-instance-info.conf\n",
+                        "\n",
+                        "OS=$(cat /etc/redhat-release  | awk {'print $1'})\n",
+                        "my_pub_ip=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)\n",
+                        "\n",
+                        "if [[ \"$OS\" = \"CentOS\" ]]; then\n",
+                        "  USER=centos\n",
+                        "else\n",
+                        "  USER=ec2-user\n",
+                        "fi\n",
+                        "\n",
+                        "echo \"export WCOLL=/root/hosts.all\" >> /root/.bashrc\n",
+                        "echo \"export PATH=$PATH:/usr/lpp/mmfs/bin\" >> /root/.bashrc\n",
+                        "source /root/.bashrc\n",
+                        "\n",
+                        "cp /home/$USER/hosts.all /root\n",
+                        "\n",
+                        "enable_root_ssh\n",
+                        "\n",
+                        "if [[ \"$eip_address\" == \"$my_pub_ip\" ]]; then\n",
+                        "\n",
+                        "  echo \"GPFS Setup and Config\"\n",
+                        "  add_keys\n",
+                        "  build_host_files\n",
+                        "  build_nsd_file\n",
+                        "  setup_gpfs\n",
+                        "  ior_setup\n",
+                        "  pdcp /root/.bash_profile /root/.bash_profile\n",
+                        "  pdcp /root/.bashrc /root/.bashrc\n",
+                        "#  #ior_runs\n",
+                        "\n",
+                        "fi\n"
                       ]
                     ]
                   }
@@ -1083,11 +1301,20 @@
                     [
                       "#!/bin/bash -x\n",
                       "\n",
-                      "total_instances=",
+                      "asg_num_instances=",
                       {
                         "Ref": "ASG01ClusterSize"
                       },
                       "\n",
+                      "((total_instances=",
+                      {
+                        "Ref": "ASG01ClusterSize"
+                      },
+                      "+",
+                      {
+                        "Ref": "ASG02ClusterSize"
+                      },
+                      "))\n",
                       "function ck_for_yum_lck {\n",
                       "  if [[ -f  /var/run/yum.pid ]]; then\n",
                       "    sleep 30\n",
@@ -1102,6 +1329,7 @@
                       "fi\n",
                       "\n",
                       "echo my_asg=AutoScalingGroup01 >> $my_inst_file\n",
+                      "echo total_instances=$total_instances >> $my_inst_file\n",
                       "\n",
                       "source $my_inst_file\n",
                       "\n",
@@ -1110,7 +1338,7 @@
                       "yum install --enablerepo=epel pdsh -y\n",
                       "pip install awscli boto3\n",
                       "\n",
-                      "/opt/aws/setup-tools/setup-inst.py $my_instance_id $my_inst_file $total_instances AutoScalingGroup01\n",
+                      "/opt/aws/setup-tools/setup-inst.py $my_instance_id $my_inst_file $asg_num_instances AutoScalingGroup01\n",
                       "/opt/aws/setup-tools/setup-ssh.sh $my_inst_file\n",
                       "\n",
                       "source $my_inst_file\n",
@@ -1155,9 +1383,6 @@
                       "",
                       [
                         "#!/usr/bin/env bash\n",
-                        "\n",
-                        "set -x\n",
-                        "\n",
                         "#\n",
                         "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
                         "#\n",
@@ -1171,6 +1396,7 @@
                         "# License for the specific language governing permissions and limitations under the License.\n",
                         "#\n",
                         "\n",
+                        "set -x\n",
                         "\n",
                         "function setup_ssh {\n",
                         "\n",
@@ -1356,15 +1582,7 @@
           "Ref": "RootInstanceProfile"
         },
         "ImageId": {
-          "Fn::FindInMap": [
-            "AWSRegionAMI",
-            {
-              "Ref": "AWS::Region"
-            },
-            {
-              "Ref": "OperatingSystem"
-            }
-          ]
+          "Ref": "AmiId"
         },
         "InstanceType": {
           "Ref": "ASG01InstanceType"
@@ -1580,13 +1798,13 @@
                 "  let sleep_time=5\n",
                 "\n",
                 "  export WCOLL=$home_dir/hosts.all\n",
-                "  let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
-                "  while [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; do\n",
+                "  let running_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "  while [[ \"$running_instances\" -lt \"$total_instances\" ]]; do\n",
                 "    echo \"Updating host info ...\"\n",
                 "    /bin/su $login_user -c $setup_tools_dir/updatehostinfo.sh\n",
                 "    echo \"Running 'pdsh date' to determine reachable instance count\"\n",
-                "    let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
-                "    if [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; then\n",
+                "    let running_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "    if [[ \"$runnin_instances\" -lt \"$total_instances\" ]]; then\n",
                 "        /bin/su $login_user -c \"pdsh date 2>&1 | grep 'Connection refused' | awk {'print $6'} > ~/hosts.unreachable\"\n",
                 "    fi\n",
                 "    sleep $sleep_time\n",
@@ -1629,7 +1847,17 @@
                 "\n",
                 "function inst_pkgs {\n",
                 "  echo \"${0}: Installing additional packages\"\n",
-                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc\n",
+                "  yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc nfs-utils ksh\n",
+                "  yum -y update aws-cfn-bootstrap\n",
+                "  pip install boto3\n",
+                "}\n",
+                "\n",
+                "function inst_dev_pkgs {\n",
+                "  echo \"${0}: Installing development packages\"\n",
+                "  yum -y groupinstall \"Development Tools\"\n",
+                "  yum -y install kernel-devel cpp gcc gcc-c++ rpm-build kernel-headers\n",
+                "  yum -y install \"kernel-devel-uname-r == $(uname -r)\"\n",
                 "}\n",
                 "\n",
                 "function fix_boot_disable_ht() {\n",
@@ -1883,11 +2111,11 @@
                 "  install_awscli\n",
                 "fi\n",
                 "\n",
-                "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc nfs-utils ksh -y\n",
-                "yum update aws-cfn-bootstrap -y\n",
+                "if [[ ! -e /opt/aws/setup-tools/pre_installed ]]; then\n",
+                "  inst_pkgs\n",
+                "  ##inst_dev_pkgs\n",
+                "fi\n",
                 "\n",
-                "inst_pkgs\n",
                 "mount_efs\n",
                 "disable_ht\n",
                 "change_tsc\n",
@@ -1905,16 +2133,22 @@
                 "  shutdown now\n",
                 "fi\n",
                 "\n",
-                "# run environment setup and main function\n",
+                "# run environment setup and main function, to include assigning and saving EIP\n",
                 "#  includes ssh_setup\n",
                 "$setup_tools_dir/setup-main.sh $my_inst_file\n",
                 "setup_main_rc=$?\n",
                 "\n",
+                "source $my_inst_file\n",
+                "\n",
                 "if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                "  echo \"Should have $total_instances instances\"\n",
                 "  build_host_file\n",
                 "fi\n",
                 "\n",
-                "cfn_sig_error_code=$setup_main_rc\n",
+                "$setup_tools_dir/gpfs-setup.sh\n",
+                "gpfs_rc=$?\n",
+                "\n",
+                "cfn_sig_error_code=$gpfs_rc\n",
                 "\n",
                 "CFN_SIG=$(echo -n $(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-signal$\"))   # using echo -n to remove cr\n",
                 "$CFN_SIG -e $cfn_sig_error_code --stack $stack_name --resource $asg_name --region $region\n",
@@ -2023,6 +2257,282 @@
                         "    except KeyboardInterrupt:\n",
                         "        print 'Received Keyboard interrupt.'\n",
                         "        print 'Exiting...'\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              },
+              "/opt/aws/setup-tools/gpfs-setup.sh": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env bash\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "\n",
+                        "set -x\n",
+                        "\n",
+                        "\n",
+                        "function ior_setup {\n",
+                        "\n",
+                        "  # for build on local host\n",
+                        "  yum groupinstall \"Development Tools\" -y\n",
+                        "\n",
+                        "  echo \"export PATH=$PATH:/usr/lib64/openmpi/bin\" >> ~/.bash_profile\n",
+                        "  echo \"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/openmpi/lib/\" >> ~/.bash_profile\n",
+                        "\n",
+                        "  echo \"export PATH=$PATH:/usr/lib64/openmpi/bin\" >> ~/.bashrc\n",
+                        "  echo \"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/openmpi/lib/\" >> ~/.bashrc\n",
+                        "\n",
+                        "  source ~/.bash_profile\n",
+                        "  export PATH=$PATH:/usr/lib64/openmpi/bin\n",
+                        "  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/openmpi/lib/\n",
+                        "\n",
+                        "  pushd /tmp\n",
+                        "  git clone https://github.com/chaos/ior.git\n",
+                        "  cd ior\n",
+                        "  ./bootstrap\n",
+                        "  ./configure LIBS=/usr/lpp/mmfs/lib/libgpfs.so\n",
+                        "  make\n",
+                        "  sudo cp src/ior /usr/local/bin/\n",
+                        "  popd\n",
+                        "\n",
+                        "  ior_version=$(/usr/local/bin/ior | head -1)\n",
+                        "  if [[ \"$ior_version\" == \"IOR-3.0.1: MPI Coordinated Test of Parallel I/O\" ]]; then\n",
+                        "    echo \"IOR Successfully build, copying binary to all hosts\"\n",
+                        "    pdcp /usr/local/bin/ior /usr/local/bin/ior\n",
+                        "  else\n",
+                        "    echo \"IOR Failed to build\"\n",
+                        "  fi\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function enable_root_ssh {\n",
+                        "\n",
+                        "  echo \"${0}: setting up root ssh\"\n",
+                        "\n",
+                        "  cp /home/$USER/.ssh/id_rsa /root/.ssh/\n",
+                        "  cp /home/$USER/.ssh/id_rsa.pub /root/.ssh/\n",
+                        "  cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys\n",
+                        "  sed -i.bak 's/PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  sed -i.bak2 's/#PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  service sshd restart\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function create_nsddevices_file {\n",
+                        "\n",
+                        "cat <<'EOF' >> /var/mmfs/etc/nsddevices\n",
+                        "#!/bin/ksh\n",
+                        "\n",
+                        "osName=$(/bin/uname -s)\n",
+                        "\n",
+                        "if [[ $osName = Linux ]]\n",
+                        "then\n",
+                        "  : # Add function to discover disks in the Linux environment.\n",
+                        "  ls -l /dev/mpath/ 2>/dev/null | awk '{print \"mpath/\"$9 \" generic\"}'\n",
+                        "  ls -l /dev/mapper/ 2>/dev/null | awk '{print \"mapper/\"$9 \" generic\"}'\n",
+                        "  ls -1 /dev/vd* 2>/dev/null | awk -F '/' '{print \"\"$3 \" generic\"}'\n",
+                        "  ls -1 /dev/xvd* 2>/dev/null | awk -F '/' '{print \"\"$3 \" generic\"}'    ## ***Added for AWS devices***\n",
+                        "  ls -1 /dev/nvme* 2>/dev/null | awk -F '/' '{print \"\"$3 \" generic\"}'    ## ***Added for AWS devices***\n",
+                        "fi\n",
+                        "\n",
+                        "# To bypass the GPFS disk discovery (/usr/lpp/mmfs/bin/mmdevdiscover),\n",
+                        "return 0\n",
+                        "\n",
+                        "# To continue with the GPFS disk discovery steps,\n",
+                        "# return 1\n",
+                        "\n",
+                        "EOF\n",
+                        "\n",
+                        "pdcp /var/mmfs/etc/nsddevices /var/mmfs/etc/nsddevices\n",
+                        "pdsh \"chmod 544 /var/mmfs/etc/nsddevices\"\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function setup_gpfs {\n",
+                        "\n",
+                        "  num_clients=$(cat $clients_file | wc -l)\n",
+                        "\n",
+                        "  mmcrcluster -N $cluster_file -r /usr/bin/ssh -R /usr/bin/scp -C gpfs1 -A\n",
+                        "  echo \"Waiting for mmcrcluster to complete\"\n",
+                        "  sleep 5\n",
+                        "\n",
+                        "  mmchlicense server --accept -N all\n",
+                        "\n",
+                        "  mmchconfig maxMBpS=12000\n",
+                        "  mmchconfig pagepool=32G\n",
+                        "  mmchconfig nsdSmallThreadRatio=1\n",
+                        "  mmchconfig nsdMaxWorkerThreads=2048\n",
+                        "  mmchconfig nsdMultiQueue=512\n",
+                        "\n",
+                        "  mmcrnsd -F $nsd_file\n",
+                        "  echo \"Waiting for nsd create\"\n",
+                        "  sleep 30\n",
+                        "\n",
+                        "  create_nsddevices_file\n",
+                        "\n",
+                        "  mmstartup -a\n",
+                        "  echo \"Waiting for start to complete\"\n",
+                        "  sleep 300\n",
+                        "\n",
+                        "\n",
+                        "  mmcrfs gpfs1 -F $nsd_file -B 1M -j cluster -n $num_clients\n",
+                        "  echo \"Waiting for FS create\"\n",
+                        "  sleep 30\n",
+                        "\n",
+                        "  mmmount all -a\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function ior_runs {\n",
+                        "\n",
+                        "  # IOR shown with two instances, each has two sockets\n",
+                        "  # large file\n",
+                        "  mpirun --allow-run-as-root --map-by node --report-bindings --hostfile /root/gpfs.clients -wdir /gpfs/gpfs1 -np 16 ior -v -g -e -w -b 10g -F -z -t 1M\n",
+                        "\n",
+                        "  # small file\n",
+                        "  mpirun --allow-run-as-root --map-by node --report-bindings --hostfile /root/gpfs.clients -wdir /gpfs/gpfs1 -np 16 ior -v -g -e -w -b 10g -F -t 4k\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function build_host_files {\n",
+                        "\n",
+                        "echo \"Building host files\"\n",
+                        "\n",
+                        "  servers=$(pdsh \"grep AutoScalingGroup01 /opt/aws/setup-tools/my-instance-info.conf\" 2>/dev/null | awk {'print $1'} | sed s/://)\n",
+                        "  clients=$(pdsh \"grep AutoScalingGroup02 /opt/aws/setup-tools/my-instance-info.conf\" 2>/dev/null | awk {'print $1'} | sed s/://)\n",
+                        "\n",
+                        "  cluster_file=/root/gpfs.cluster\n",
+                        "  servers_file=/root/gpfs.servers\n",
+                        "  clients_file=/root/gpfs.clients\n",
+                        "\n",
+                        "  rm $cluster_file $servers_file $clients_file\n",
+                        "\n",
+                        "  let count=1\n",
+                        "  for s in $servers; do\n",
+                        "    if [[ \"$count\" -lt 8 ]]; then\n",
+                        "      echo ${s}:manager-quorum >> $cluster_file\n",
+                        "    else\n",
+                        "      echo ${s} >>  $cluster_file\n",
+                        "    fi\n",
+                        "    echo ${s} >> $servers_file\n",
+                        "    ((count=$count+1))\n",
+                        "  done\n",
+                        "\n",
+                        "  let count=1\n",
+                        "  for c in $clients; do\n",
+                        "    if [[ \"$count\" -eq 1 ]]; then\n",
+                        "      echo ${c}:quorum >> $cluster_file\n",
+                        "    else\n",
+                        "      echo ${c} >> $cluster_file\n",
+                        "    fi\n",
+                        "    echo ${c} >> $clients_file\n",
+                        "    ((count=$count+1))\n",
+                        "  done\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "function build_nsd_file {\n",
+                        "\n",
+                        "  nsd_file=/root/gpfs.nsd\n",
+                        "  rm $nsd_file\n",
+                        "\n",
+                        "  let tot_disks=8\n",
+                        "  let nsd_num=0\n",
+                        "  fg=100\n",
+                        "\n",
+                        "  for s in $servers; do\n",
+                        "    let disk_num=0\n",
+                        "    while [[ \"$disk_num\" -lt \"$tot_disks\" ]]; do\n",
+                        "      echo \"%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
+                        "      ((disk_num=$disk_num+1))\n",
+                        "      ((nsd_num=$nsd_num+1))\n",
+                        "    done\n",
+                        "\n",
+                        "    if [[ \"$fg\" == \"100\" ]]; then\n",
+                        "       fg=200\n",
+                        "    else\n",
+                        "       fg=100\n",
+                        "    fi\n",
+                        "\n",
+                        "  done\n",
+                        "}\n",
+                        "\n",
+                        "function add_keys {\n",
+                        "\n",
+                        "  for h in $(cat /root/hosts.all); do\n",
+                        "    ssh -o StrictHostKeyChecking=no $h date > /dev/null\n",
+                        "    ssh -o StrictHostKeyChecking=no ${h}.ec2.internal date > /dev/null\n",
+                        "  done\n",
+                        "\n",
+                        "  pdcp /root/.ssh/known_hosts /root/.ssh/known_hosts\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "source /opt/aws/setup-tools/my-instance-info.conf\n",
+                        "\n",
+                        "OS=$(cat /etc/redhat-release  | awk {'print $1'})\n",
+                        "my_pub_ip=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)\n",
+                        "\n",
+                        "if [[ \"$OS\" = \"CentOS\" ]]; then\n",
+                        "  USER=centos\n",
+                        "else\n",
+                        "  USER=ec2-user\n",
+                        "fi\n",
+                        "\n",
+                        "echo \"export WCOLL=/root/hosts.all\" >> /root/.bashrc\n",
+                        "echo \"export PATH=$PATH:/usr/lpp/mmfs/bin\" >> /root/.bashrc\n",
+                        "source /root/.bashrc\n",
+                        "\n",
+                        "cp /home/$USER/hosts.all /root\n",
+                        "\n",
+                        "enable_root_ssh\n",
+                        "\n",
+                        "if [[ \"$eip_address\" == \"$my_pub_ip\" ]]; then\n",
+                        "\n",
+                        "  echo \"GPFS Setup and Config\"\n",
+                        "  add_keys\n",
+                        "  build_host_files\n",
+                        "  build_nsd_file\n",
+                        "  setup_gpfs\n",
+                        "  ior_setup\n",
+                        "  pdcp /root/.bash_profile /root/.bash_profile\n",
+                        "  pdcp /root/.bashrc /root/.bashrc\n",
+                        "#  #ior_runs\n",
+                        "\n",
+                        "fi\n"
                       ]
                     ]
                   }
@@ -2298,11 +2808,20 @@
                     [
                       "#!/bin/bash -x\n",
                       "\n",
-                      "total_instances=",
+                      "asg_num_instances=",
                       {
                         "Ref": "ASG02ClusterSize"
                       },
                       "\n",
+                      "((total_instances=",
+                      {
+                        "Ref": "ASG01ClusterSize"
+                      },
+                      "+",
+                      {
+                        "Ref": "ASG02ClusterSize"
+                      },
+                      "))\n",
                       "function ck_for_yum_lck {\n",
                       "  if [[ -f  /var/run/yum.pid ]]; then\n",
                       "    sleep 30\n",
@@ -2317,6 +2836,7 @@
                       "fi\n",
                       "\n",
                       "echo my_asg=AutoScalingGroup02 >> $my_inst_file\n",
+                      "echo total_instances=$total_instances >> $my_inst_file\n",
                       "\n",
                       "source $my_inst_file\n",
                       "\n",
@@ -2325,7 +2845,7 @@
                       "yum install --enablerepo=epel pdsh -y\n",
                       "pip install awscli boto3\n",
                       "\n",
-                      "/opt/aws/setup-tools/setup-inst.py $my_instance_id $my_inst_file $total_instances AutoScalingGroup02\n",
+                      "/opt/aws/setup-tools/setup-inst.py $my_instance_id $my_inst_file $asg_num_instances AutoScalingGroup02\n",
                       "/opt/aws/setup-tools/setup-ssh.sh $my_inst_file\n",
                       "\n",
                       "source $my_inst_file\n",
@@ -2370,9 +2890,6 @@
                       "",
                       [
                         "#!/usr/bin/env bash\n",
-                        "\n",
-                        "set -x\n",
-                        "\n",
                         "#\n",
                         "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
                         "#\n",
@@ -2386,6 +2903,7 @@
                         "# License for the specific language governing permissions and limitations under the License.\n",
                         "#\n",
                         "\n",
+                        "set -x\n",
                         "\n",
                         "function setup_ssh {\n",
                         "\n",
@@ -2571,15 +3089,7 @@
           "Ref": "RootInstanceProfile"
         },
         "ImageId": {
-          "Fn::FindInMap": [
-            "AWSRegionAMI",
-            {
-              "Ref": "AWS::Region"
-            },
-            {
-              "Ref": "OperatingSystem"
-            }
-          ]
+          "Ref": "AmiId"
         },
         "InstanceType": {
           "Ref": "ASG02InstanceType"
@@ -2795,13 +3305,13 @@
                 "  let sleep_time=5\n",
                 "\n",
                 "  export WCOLL=$home_dir/hosts.all\n",
-                "  let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
-                "  while [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; do\n",
+                "  let running_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "  while [[ \"$running_instances\" -lt \"$total_instances\" ]]; do\n",
                 "    echo \"Updating host info ...\"\n",
                 "    /bin/su $login_user -c $setup_tools_dir/updatehostinfo.sh\n",
                 "    echo \"Running 'pdsh date' to determine reachable instance count\"\n",
-                "    let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
-                "    if [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; then\n",
+                "    let running_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "    if [[ \"$runnin_instances\" -lt \"$total_instances\" ]]; then\n",
                 "        /bin/su $login_user -c \"pdsh date 2>&1 | grep 'Connection refused' | awk {'print $6'} > ~/hosts.unreachable\"\n",
                 "    fi\n",
                 "    sleep $sleep_time\n",
@@ -2844,7 +3354,17 @@
                 "\n",
                 "function inst_pkgs {\n",
                 "  echo \"${0}: Installing additional packages\"\n",
-                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc\n",
+                "  yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc nfs-utils ksh\n",
+                "  yum -y update aws-cfn-bootstrap\n",
+                "  pip install boto3\n",
+                "}\n",
+                "\n",
+                "function inst_dev_pkgs {\n",
+                "  echo \"${0}: Installing development packages\"\n",
+                "  yum -y groupinstall \"Development Tools\"\n",
+                "  yum -y install kernel-devel cpp gcc gcc-c++ rpm-build kernel-headers\n",
+                "  yum -y install \"kernel-devel-uname-r == $(uname -r)\"\n",
                 "}\n",
                 "\n",
                 "function fix_boot_disable_ht() {\n",
@@ -3098,11 +3618,11 @@
                 "  install_awscli\n",
                 "fi\n",
                 "\n",
-                "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
-                "yum install psmisc nfs-utils ksh -y\n",
-                "yum update aws-cfn-bootstrap -y\n",
+                "if [[ ! -e /opt/aws/setup-tools/pre_installed ]]; then\n",
+                "  inst_pkgs\n",
+                "  ##inst_dev_pkgs\n",
+                "fi\n",
                 "\n",
-                "inst_pkgs\n",
                 "mount_efs\n",
                 "disable_ht\n",
                 "change_tsc\n",
@@ -3120,16 +3640,22 @@
                 "  shutdown now\n",
                 "fi\n",
                 "\n",
-                "# run environment setup and main function\n",
+                "# run environment setup and main function, to include assigning and saving EIP\n",
                 "#  includes ssh_setup\n",
                 "$setup_tools_dir/setup-main.sh $my_inst_file\n",
                 "setup_main_rc=$?\n",
                 "\n",
+                "source $my_inst_file\n",
+                "\n",
                 "if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                "  echo \"Should have $total_instances instances\"\n",
                 "  build_host_file\n",
                 "fi\n",
                 "\n",
-                "cfn_sig_error_code=$setup_main_rc\n",
+                "$setup_tools_dir/gpfs-setup.sh\n",
+                "gpfs_rc=$?\n",
+                "\n",
+                "cfn_sig_error_code=$gpfs_rc\n",
                 "\n",
                 "CFN_SIG=$(echo -n $(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-signal$\"))   # using echo -n to remove cr\n",
                 "$CFN_SIG -e $cfn_sig_error_code --stack $stack_name --resource $asg_name --region $region\n",
@@ -3147,7 +3673,7 @@
       "CreationPolicy": {
         "ResourceSignal": {
           "Count": {
-            "Ref": "ASG01MinClusterSize"
+            "Ref": "ASG01ClusterSize"
           },
           "Timeout": "PT60M"
         }
@@ -3161,10 +3687,10 @@
           "Ref": "ASG01LaunchConfiguration"
         },
         "MaxSize": {
-          "Ref": "ASG01MaxClusterSize"
+          "Ref": "ASG01ClusterSize"
         },
         "MinSize": {
-          "Ref": "ASG01MinClusterSize"
+          "Ref": "ASG01ClusterSize"
         },
         "PlacementGroup": {
           "Ref": "PlacementGroup"
@@ -3181,7 +3707,7 @@
       "CreationPolicy": {
         "ResourceSignal": {
           "Count": {
-            "Ref": "ASG02MinClusterSize"
+            "Ref": "ASG02ClusterSize"
           },
           "Timeout": "PT60M"
         }
@@ -3195,10 +3721,10 @@
           "Ref": "ASG02LaunchConfiguration"
         },
         "MaxSize": {
-          "Ref": "ASG02MaxClusterSize"
+          "Ref": "ASG02ClusterSize"
         },
         "MinSize": {
-          "Ref": "ASG02MinClusterSize"
+          "Ref": "ASG02ClusterSize"
         },
         "PlacementGroup": {
           "Ref": "PlacementGroup"
