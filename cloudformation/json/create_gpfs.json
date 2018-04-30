@@ -32,6 +32,14 @@
         },
         "True"
       ]
+    },
+    "vol_type_ebs": {
+      "Fn::Equals": [
+        {
+          "Ref": "VolType"
+        },
+        "EBS"
+      ]
     }
   },
   "Description": "Launch two AutoScaling Groups, with the option to choose a different instance type for each. A placement group is used.  An instance from the first ASGis assigned an EIP, and pdsh is setup on the instance (that has the EIP) to manager theentire cluster (both ASGs).",
@@ -551,7 +559,10 @@
     },
     "ASG01InstanceType": {
       "AllowedValues": [
-        "i3.16xlarge"
+        "i3.16xlarge",
+        "r4.16xlarge",
+        "c5.18xlarge",
+        "c4.8xlarge"
       ],
       "ConstraintDescription": "Must be a valid instance type for that region, with HVM64 support",
       "Default": "i3.16xlarge",
@@ -615,13 +626,8 @@
       "AllowedValues": [
         "alinux",
         "alinux2",
-        "centos6",
         "centos7",
-        "rhel7",
-        "suse11",
-        "suse12",
-        "ubuntu14",
-        "ubuntu16"
+        "rhel7"
       ],
       "ConstraintDescription": "Must be: alinux, alinux2, centos6, centos7, rhel7, suse11, suse12, ubuntu14, ubuntu16",
       "Default": "rhel7",
@@ -652,6 +658,16 @@
     "VPCId": {
       "Description": "VPC Id for this instance",
       "Type": "AWS::EC2::VPC::Id"
+    },
+    "VolType": {
+      "AllowedValues": [
+        "EBS",
+        "InstanceStore"
+      ],
+      "ConstraintDescription": "Volume type has to EBS or InstanceStore",
+      "Default": "EBS",
+      "Description": "Type of volume",
+      "Type": "String"
     }
   },
   "Resources": {
@@ -998,11 +1014,18 @@
                         "\n",
                         "  for s in $servers; do\n",
                         "    let disk_num=0\n",
-                        "    while [[ \"$disk_num\" -lt \"$tot_disks\" ]]; do\n",
-                        "      echo \"%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
-                        "      ((disk_num=$disk_num+1))\n",
-                        "      ((nsd_num=$nsd_num+1))\n",
-                        "    done\n",
+                        "    if [[ \"$vol_type\" = \"InstanceStore\" ]]; then\n",
+                        "      while [[ \"$disk_num\" -lt \"$tot_disks\" ]]; do\n",
+                        "        echo \"%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
+                        "        ((disk_num=$disk_num+1))\n",
+                        "        ((nsd_num=$nsd_num+1))\n",
+                        "      done\n",
+                        "    elif [[ \"$vol_type\" = \"EBS\" ]]; then\n",
+                        "      for dev_let in h i j k l m n o; do\n",
+                        "        echo \"%nsd: device=/dev/xvd${dev_let} nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
+                        "        ((nsd_num=$nsd_num+1))\n",
+                        "      done\n",
+                        "    fi\n",
                         "\n",
                         "    if [[ \"$fg\" == \"100\" ]]; then\n",
                         "       fg=200\n",
@@ -1608,6 +1631,88 @@
         "AssociatePublicIpAddress": {
           "Ref": "UsePublicIp"
         },
+        "BlockDeviceMappings": {
+          "Fn::If": [
+            "vol_type_ebs",
+            [
+              {
+                "DeviceName": "/dev/sdh",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              },
+              {
+                "DeviceName": "/dev/sdi",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              },
+              {
+                "DeviceName": "/dev/sdj",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              },
+              {
+                "DeviceName": "/dev/sdk",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              },
+              {
+                "DeviceName": "/dev/sdl",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              },
+              {
+                "DeviceName": "/dev/sdm",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              },
+              {
+                "DeviceName": "/dev/sdn",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              },
+              {
+                "DeviceName": "/dev/sdo",
+                "Ebs": {
+                  "DeleteOnTermination": "true",
+                  "Iops": 20000,
+                  "VolumeSize": "400",
+                  "VolumeType": "io1"
+                }
+              }
+            ],
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        },
         "IamInstanceProfile": {
           "Ref": "RootInstanceProfile"
         },
@@ -1717,6 +1822,11 @@
                 "echo new_efs=",
                 {
                   "Ref": "NewEfsFileSystem"
+                },
+                " >> $my_inst_file\n",
+                "echo vol_type=",
+                {
+                  "Ref": "VolType"
                 },
                 " >> $my_inst_file\n",
                 "\n",
@@ -2535,11 +2645,18 @@
                         "\n",
                         "  for s in $servers; do\n",
                         "    let disk_num=0\n",
-                        "    while [[ \"$disk_num\" -lt \"$tot_disks\" ]]; do\n",
-                        "      echo \"%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
-                        "      ((disk_num=$disk_num+1))\n",
-                        "      ((nsd_num=$nsd_num+1))\n",
-                        "    done\n",
+                        "    if [[ \"$vol_type\" = \"InstanceStore\" ]]; then\n",
+                        "      while [[ \"$disk_num\" -lt \"$tot_disks\" ]]; do\n",
+                        "        echo \"%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
+                        "        ((disk_num=$disk_num+1))\n",
+                        "        ((nsd_num=$nsd_num+1))\n",
+                        "      done\n",
+                        "    elif [[ \"$vol_type\" = \"EBS\" ]]; then\n",
+                        "      for dev_let in h i j k l m n o; do\n",
+                        "        echo \"%nsd: device=/dev/xvd${dev_let} nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system\" >> $nsd_file\n",
+                        "        ((nsd_num=$nsd_num+1))\n",
+                        "      done\n",
+                        "    fi\n",
                         "\n",
                         "    if [[ \"$fg\" == \"100\" ]]; then\n",
                         "       fg=200\n",
@@ -3254,6 +3371,11 @@
                 "echo new_efs=",
                 {
                   "Ref": "NewEfsFileSystem"
+                },
+                " >> $my_inst_file\n",
+                "echo vol_type=",
+                {
+                  "Ref": "VolType"
                 },
                 " >> $my_inst_file\n",
                 "\n",

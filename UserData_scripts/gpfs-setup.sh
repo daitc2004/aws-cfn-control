@@ -215,11 +215,18 @@ function build_nsd_file {
 
   for s in $servers; do
     let disk_num=0
-    while [[ "$disk_num" -lt "$tot_disks" ]]; do
-      echo "%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system" >> $nsd_file
-      ((disk_num=$disk_num+1))
-      ((nsd_num=$nsd_num+1))
-    done
+    if [[ "$vol_type" = "InstanceStore" ]]; then
+      while [[ "$disk_num" -lt "$tot_disks" ]]; do
+        echo "%nsd: device=/dev/nvme${disk_num}n1 nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system" >> $nsd_file
+        ((disk_num=$disk_num+1))
+        ((nsd_num=$nsd_num+1))
+      done
+    elif [[ "$vol_type" = "EBS" ]]; then
+      for dev_let in h i j k l m n o; do
+        echo "%nsd: device=/dev/xvd${dev_let} nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system" >> $nsd_file
+        ((nsd_num=$nsd_num+1))
+      done
+    fi
 
     if [[ "$fg" == "100" ]]; then
        fg=200
