@@ -184,6 +184,9 @@ def main():
         Default="i3.16xlarge",
         AllowedValues=[
             "i3.16xlarge",
+            "r4.16xlarge",
+            "c5.18xlarge",
+            "c4.8xlarge"
         ],
         ConstraintDescription="Must be a valid instance type for that region, with HVM64 support"
     ))
@@ -196,13 +199,8 @@ def main():
         AllowedValues=[
             "alinux",
             "alinux2",
-            "centos6",
             "centos7",
             "rhel7",
-            "suse11",
-            "suse12",
-            "ubuntu14",
-            "ubuntu16"
         ],
         ConstraintDescription="Must be: alinux, alinux2, centos6, centos7, rhel7, suse11, suse12, ubuntu14, ubuntu16"
     ))
@@ -229,6 +227,18 @@ def main():
             "t2.2xlarge"
         ],
         ConstraintDescription="Must be a valid instance type for that region, with HVM64 support"
+    ))
+
+    VolType = t.add_parameter(Parameter(
+        'VolType',
+        Type="String",
+        Description="Type of volume",
+        Default="EBS",
+        AllowedValues=[
+            "EBS",
+            "InstanceStore"
+        ],
+        ConstraintDescription="Volume type has to EBS or InstanceStore"
     ))
 
     VPCId = t.add_parameter(Parameter(
@@ -453,6 +463,83 @@ def main():
         InstanceType=(Ref(ASG01InstanceType)),
         AssociatePublicIpAddress=(Ref(UsePublicIp)),
         IamInstanceProfile=(Ref(RootInstanceProfile)),
+        BlockDeviceMappings=If('vol_type_ebs',
+                               [
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdh",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdi",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdj",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdk",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdl",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdm",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdn",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                                   ec2.BlockDeviceMapping(
+                                       DeviceName="/dev/sdo",
+                                       Ebs=ec2.EBSBlockDevice(
+                                           VolumeSize="400",
+                                           DeleteOnTermination="True",
+                                           Iops=20000,
+                                           VolumeType="io1"
+                                       )
+                                   ),
+                               ],
+                               { "Ref": "AWS::NoValue" },
+       ),
         Metadata=autoscaling.Metadata(
             cloudformation.Init({
                 "config": cloudformation.InitConfig(
@@ -725,6 +812,13 @@ def main():
                     Equals(
                         Ref(ExistingSecurityGroup),
                         ""
+                    )
+    )
+
+    t.add_condition("vol_type_ebs",
+                    Equals(
+                        Ref(VolType),
+                        "EBS"
                     )
     )
 
