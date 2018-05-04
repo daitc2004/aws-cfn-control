@@ -20,35 +20,37 @@ function setup_ssh {
 
   ssh_key_dir=/mnt/efs/${stack_name}
   ssh_key_file=${ssh_key_dir}/id_rsa
-
-  if [[ "$my_instance_id" = "$eip_instance" ]]; then
-    echo "On the EIP instance, creating key $ssh_key_file"
-
-    # make key dir
-    mkdir -p $ssh_key_dir
-    mkdir_rc=$?
-    if [[ "$mkdir_rc" != 0 ]]; then
-      echo "Could not create $ssh_key_dir"
-      return
-    fi
-
-    # make keys
-    ssh-keygen -b 2048 -t rsa -f $ssh_key_file -q -N ''
-    ssh_rc=$?
-    if [[ "$ssh_rc" != 0 ]]; then
-      echo "Could not generate ssy key"
-      return
-    fi
-
-  fi
-
-  echo "Copying ssh keys to ${home_dir}/.ssh"
-
   let ssh_count=1
   let ssh_rc=0
+  let wait_max_min=60
 
-  while [[ "$ssh_count" -lt 11 ]]; do
+  while [[ "$ssh_count" -le "$wait_max_min" ]]; do
+
+    source $my_inst_file
+
+    if [[ "$my_instance_id" = "$eip_instance" ]]; then
+      echo "On the EIP instance, creating key $ssh_key_file"
+
+      # make key dir
+      mkdir -p $ssh_key_dir
+      mkdir_rc=$?
+      if [[ "$mkdir_rc" != 0 ]]; then
+        echo "Could not create $ssh_key_dir"
+        return
+      fi
+
+      # make keys
+      ssh-keygen -b 2048 -t rsa -f $ssh_key_file -q -N ''
+      ssh_rc=$?
+      if [[ "$ssh_rc" != 0 ]]; then
+        echo "Could not generate ssy key"
+        return
+      fi
+    fi
+
     if [[ -e "${ssh_key_dir}/id_rsa" ]]; then
+      echo "Copying ssh keys to ${home_dir}/.ssh"
+
       cp ${ssh_key_dir}/id_rsa $home_dir/.ssh/id_rsa
       ((ssh_rc=$ssh_rc+$?))
 
@@ -73,7 +75,7 @@ function setup_ssh {
     else
       echo "Can't see ssh key yet.  Waiting..."
       sleep 60
-      if [[ "$ssh_count" -eq 11 ]]; then
+      if [[ "$ssh_count" -gt "$wait_max_min" ]]; then
         echo "Could not copy ssh key files"
         return
       fi

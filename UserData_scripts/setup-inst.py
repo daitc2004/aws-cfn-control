@@ -34,24 +34,13 @@ def set_inst_eip (eip, my_instance_id, my_inst_file, instances, client):
 
     launch_time = dict()
 
-    i = dict()
-    response = client.describe_instances(InstanceIds=instances,DryRun=False)
-    for r in response['Reservations']:
-        for resp_i in (r['Instances']):
-            i = resp_i['InstanceId']
-            time_tuple = (resp_i['LaunchTime'].timetuple())
-            launch_time_secs = time.mktime(time_tuple)
-            launch_time[i] = launch_time_secs
+    response = client.associate_address(InstanceId=my_instance_id, PublicIp=eip, DryRun=False)
+    f = open(my_inst_file, 'a')
+    f.write('eip_instance={0}\n'.format(my_instance_id))
+    f.close()
+    logger.info('Assigned {0} to instance {1}'.format(eip, my_instance_id))
 
-    launch_time_list = sorted(launch_time.items(), key=operator.itemgetter(1))
-    inst_to_alloc_eip = launch_time_list[1][0]
-
-    if inst_to_alloc_eip == my_instance_id:
-        response = client.associate_address(InstanceId=inst_to_alloc_eip, PublicIp=eip, DryRun=False)
-        f = open(my_inst_file, 'a')
-        f.write('eip_instance={0}\n'.format(inst_to_alloc_eip))
-        f.close()
-        logger.info('Assigned {0} to instance {1}'.format(eip, inst_to_alloc_eip))
+    return
 
 
 def all_inst_running(instances, client):
@@ -59,6 +48,8 @@ def all_inst_running(instances, client):
     logger.info("Checking if all instances are running")
 
     num_inst = len(instances)
+
+
 
     response = client.describe_instance_status(InstanceIds=instances, IncludeAllInstances=False)
 
@@ -122,7 +113,7 @@ def ck_asg_inst_status(asg, client_asg, ec2):
     return in_service, not_in_service
 
 
-def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name):
+def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list):
 
     logger.info('Checking the current instance status for {}'.format(' '.join(asg_list)))
 
@@ -132,12 +123,11 @@ def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, m
         if int(total_instances) == len(instances):
             break
         for asg in asg_list:
-            if my_asg_short_name in asg:
-                (in_serv, not_in_serv)  = ck_asg_inst_status(asg, asg_client, ec2)
-                for i in in_serv:
-                    if in_serv not in instances:
-                        instances.append(i)
-        time.sleep(1)
+            (in_serv, not_in_serv)  = ck_asg_inst_status(asg, asg_client, ec2)
+            for i in in_serv:
+                if i not in instances:
+                    instances.append(i)
+        time.sleep(5)
 
     return instances
 
@@ -164,7 +154,7 @@ def main():
 
     asg_list = get_asg_from_stack(stack_name, cfn_client)
 
-    instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)
+    instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list)
 
     all_running_status = False
     inst_count = 0
@@ -177,14 +167,14 @@ def main():
             time.sleep(10)
             # update instances
             o_instances = instances
-            instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)
+            instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list)
             if instances != o_instances:
                 logger.info('Some instances that were running are not now')
                 for down_i in o_instances:
                     if down_i not in instances:
                         logger.info('Instance is now not running: {0}'.format(down_i))
 
-    logger.info("All {0} instances running in {1}".format(all_inst_running(instances, client_ec2), my_asg_short_name))
+    logger.info("All {0} instances running.".format(all_inst_running(instances, client_ec2)))
 
     time.sleep(5)
 
