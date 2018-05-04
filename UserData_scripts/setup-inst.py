@@ -42,19 +42,36 @@ def set_inst_eip (eip, my_instance_id, my_inst_file, instances, client):
 
     return
 
-
 def all_inst_running(instances, client):
 
     logger.info("Checking if all instances are running")
 
-    num_inst = len(instances)
-
-
-
-    response = client.describe_instance_status(InstanceIds=instances, IncludeAllInstances=False)
-
     running = list()
     not_running = list()
+    num_inst = len(instances)
+
+    r = []
+
+    while len(instances) > 50:
+        temp_i = instances[:50]
+        logger.info("Checking instances are running".format(num_inst))
+        print("Checking if 50 of {} instances are running".format(num_inst))
+
+        response = client.describe_instance_status(InstanceIds=temp_i, IncludeAllInstances=False)
+        time.sleep(5)
+
+        for r in response['InstanceStatuses']:
+            #print(r)
+            if (r['InstanceState']['Name']) == 'running':
+                running.append(r['InstanceId'])
+            else:
+                not_running.append(r['InstanceId'])
+
+        instances   = instances[50:]
+        print("r:{} nr:{}".format(len(running), len(not_running)))
+
+    response = client.describe_instance_status(InstanceIds=instances, IncludeAllInstances=False)
+    print("Checking if last block of instances are running")
 
     for r in response['InstanceStatuses']:
         #print(r)
@@ -62,6 +79,8 @@ def all_inst_running(instances, client):
             running.append(r['InstanceId'])
         else:
             not_running.append(r['InstanceId'])
+
+    print("r:{} nr:{}".format(len(running), len(not_running)))
 
     if len(running) == num_inst:
         return True, len(running), running
@@ -141,9 +160,9 @@ def main():
     total_instances = sys.argv[3]
     my_asg_short_name = sys.argv[4]
 
-    region = "Ref('AWS::Region')"
-    stack_name = "Ref('AWS::StackName')"
-    ip_addr = "Ref('EIPAddress')"
+    region = "us-east-1"
+    stack_name = "gpfs-stack3"
+    ip_addr = "18.205.147.249"
     instances = list()
 
     asg_client = boto3.client('autoscaling', region_name=region)
@@ -174,7 +193,8 @@ def main():
                     if down_i not in instances:
                         logger.info('Instance is now not running: {0}'.format(down_i))
 
-    logger.info("All {0} instances running.".format(all_inst_running(instances, client_ec2)))
+    logger.info("All {0} instances running.".format(inst_count))
+    print("All {0} instances running.".format(inst_count))
 
     time.sleep(5)
 
