@@ -222,7 +222,7 @@ function build_nsd_file {
         ((nsd_num=$nsd_num+1))
       done
     elif [[ "$vol_type" = "EBS" ]]; then
-      for dev_let in h i j k l m n o; do
+      for dev_let in h i j k l m; do
         echo "%nsd: device=/dev/xvd${dev_let} nsd=nsd${nsd_num} servers=${s} usage=dataAndMetadata failureGroup=${fg} pool=system" >> $nsd_file
         ((nsd_num=$nsd_num+1))
       done

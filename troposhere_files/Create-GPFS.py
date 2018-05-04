@@ -148,6 +148,14 @@ def main():
                                    "EfsId",
                                    "SshAccessCidr"
                                    ]
+                },
+                {
+                    'Label': {'default': 'Storage Configuration Parameters'},
+                    'Parameters': ["VolType",
+                                   "EBSVolType",
+                                   "VolSize",
+                                   "VolIops"
+                                   ]
                 }
             ],
             'ParameterLabels': {
@@ -160,12 +168,16 @@ def main():
                 'VPCId': {'default': 'VPC ID'},
                 'Subnet': {'default': 'Subnet ID'},
                 'ExistingSecurityGroup': {'default': 'Existing Security Group'},
-                'CreateElasticIP': {'default': 'Create and Elaastic IP'},
+                'CreateElasticIP': {'default': 'Create an Elaastic IP'},
                 'ASG01ClusterSize': {'default': 'Initial ASG 01 cluster size'},
                 'ASG02ClusterSize': {'default': 'Initial ASG 02 cluster size'},
                 'AdditionalBucketName': {'default': 'Additional Bucket'},
                 'EfsId': {'default': 'EFS File System ID'},
-                'SshAccessCidr': {'default': 'SSH Access CIDR Block'}
+                'SshAccessCidr': {'default': 'SSH Access CIDR Block'},
+                'VolType': {'default': 'Vol type EBS / InstanceStore'},
+                'EBSVolType': {'default': 'EBS type, (io1, gp2, st1)'},
+                'VolSize': {'default': 'EBS volume size'},
+                'VolIops': {'default': 'EBS IOPS'}
             }
         }
     })
@@ -239,6 +251,33 @@ def main():
             "InstanceStore"
         ],
         ConstraintDescription="Volume type has to EBS or InstanceStore"
+    ))
+
+    VolSize = t.add_parameter(Parameter(
+        'VolSize',
+        Type="Number",
+        Default="400",
+        Description="Volume size in GB"
+    ))
+
+    VolIops = t.add_parameter(Parameter(
+        'VolIops',
+        Type="Number",
+        Default="20000",
+        Description="IOPS for the EBS volume"
+    ))
+
+    EBSVolType = t.add_parameter(Parameter(
+        'EBSVolType',
+        Description="Type of volumes to create",
+        Type="String",
+        Default="io1",
+        ConstraintDescription="Must be a either: io1, gp2, st1",
+        AllowedValues= [
+           "io1",
+           "gp2",
+           "st1"
+        ]
     ))
 
     VPCId = t.add_parameter(Parameter(
@@ -319,6 +358,13 @@ def main():
         AllowedPattern="(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
         ConstraintDescription="Must be a valid CIDR x.x.x.x/x"
     ))
+
+    VarLogMessagesFile = t.add_parameter(Parameter(
+        'VarLogMessagesFile',
+        Type="String",
+        Description="S3 bucket and file name for log CloudWatch config (e.g. s3://jouser-logs/var-log-message.config)"
+    ))
+
 
     RootRole = t.add_resource(iam.Role(
         "RootRole",
@@ -452,6 +498,7 @@ def main():
         Condition='create_efs'
     ))
 
+
     ASG01LaunchConfig = t.add_resource(LaunchConfiguration(
         'ASG01LaunchConfiguration',
         ImageId=Ref(AmiId),
@@ -468,73 +515,55 @@ def main():
                                    ec2.BlockDeviceMapping(
                                        DeviceName="/dev/sdh",
                                        Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
+                                           VolumeSize=(Ref(VolSize)),
                                            DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
+                                           Iops=(Ref(VolIops)),
+                                           VolumeType=(Ref(EBSVolType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
                                        DeviceName="/dev/sdi",
                                        Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
+                                           VolumeSize=(Ref(VolSize)),
                                            DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
+                                           Iops=(Ref(VolIops)),
+                                           VolumeType=(Ref(EBSVolType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
                                        DeviceName="/dev/sdj",
                                        Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
+                                           VolumeSize=(Ref(VolSize)),
                                            DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
+                                           Iops=(Ref(VolIops)),
+                                           VolumeType=(Ref(EBSVolType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
                                        DeviceName="/dev/sdk",
                                        Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
+                                           VolumeSize=(Ref(VolSize)),
                                            DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
+                                           Iops=(Ref(VolIops)),
+                                           VolumeType=(Ref(EBSVolType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
                                        DeviceName="/dev/sdl",
                                        Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
+                                           VolumeSize=(Ref(VolSize)),
                                            DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
+                                           Iops=(Ref(VolIops)),
+                                           VolumeType=(Ref(EBSVolType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
                                        DeviceName="/dev/sdm",
                                        Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
+                                           VolumeSize=(Ref(VolSize)),
                                            DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
-                                       )
-                                   ),
-                                   ec2.BlockDeviceMapping(
-                                       DeviceName="/dev/sdn",
-                                       Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
-                                           DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
-                                       )
-                                   ),
-                                   ec2.BlockDeviceMapping(
-                                       DeviceName="/dev/sdo",
-                                       Ebs=ec2.EBSBlockDevice(
-                                           VolumeSize="400",
-                                           DeleteOnTermination="True",
-                                           Iops=20000,
-                                           VolumeType="io1"
+                                           Iops=(Ref(VolIops)),
+                                           VolumeType=(Ref(EBSVolType))
                                        )
                                    ),
                                ],
@@ -586,42 +615,30 @@ def main():
                             content=Join('', [
                                 '#!/bin/bash -x\n',
                                 '\n',
-                                'asg_num_instances=', Ref(ASG01ClusterSize), '\n',
-                                '((total_instances=', Ref(ASG01ClusterSize), '+', Ref(ASG02ClusterSize), '))\n',
-                                'function ck_for_yum_lck {\n',
-                                '  if [[ -f  /var/run/yum.pid ]]; then\n',
-                                '    sleep 30\n',
-                                '  fi\n',
-                                '  killall -9 yum\n',
-                                '}\n',
-                                '\n',
                                 'if [[ $1 ]]; then\n',
                                 '  my_inst_file=$1\n',
                                 'else\n',
                                 '  my_inst_file={0}/my-instance-info.conf\n'.format(setup_tools_dir),
                                 'fi\n',
                                 '\n',
+                                'asg_num_instances=', Ref(ASG01ClusterSize), '\n',
+                                '((total_instances=', Ref(ASG01ClusterSize), '+', Ref(ASG02ClusterSize), '))\n',
+                                '\n',
+                                'source $my_inst_file\n',
+                                '\n',
+                                '# Just do instance check and set EIP, the exit\n',
+                                'if [[ $2 = "set_eip" ]]; then\n'
+                                '  echo "Doing instance check and setting EIP"\n',
+                                '  # sleep for random time to space out API calls\n',
+                                '  sleep $((1 + RANDOM % 120))\n',
+                                '  {0}/setup-inst.py $my_instance_id $my_inst_file $total_instances {1}\n'.format(setup_tools_dir, asg1),
+                                '  exit 0\n',
+                                'fi\n',
+                                '\n',
+                                '# Set ENV vars only, if $1 only or no args given\n',
+                                '\n',
                                 'echo my_asg={0} >> $my_inst_file\n'.format(asg1),
                                 'echo total_instances=$total_instances >> $my_inst_file\n',
-                                '\n',
-                                'source $my_inst_file\n',
-                                '\n',
-                                'ck_for_yum_lck\n',
-                                'yum install -y aws-cfn-bootstrap\n',
-                                'yum install --enablerepo=epel pdsh -y\n',
-                                'pip install awscli boto3\n',
-                                '\n',
-                                '{0}/setup-inst.py $my_instance_id $my_inst_file $asg_num_instances {1}\n'.format(setup_tools_dir, asg1),
-                                '{0}/setup-ssh.sh $my_inst_file\n'.format(setup_tools_dir),
-                                '\n',
-                                'source $my_inst_file\n',
-                                '\n',
-                                'if [[ "$my_instance_id" = "$eip_instance" ]]; then\n',
-                                '  ln -s {0}/updatehostinfo.sh /usr/local/bin/updatehostinfo\n'.format(setup_tools_dir),
-                                '  ln -s {0}/gethostinfo.py /usr/local/bin/gethostinfo\n'.format(setup_tools_dir),
-                                '  /bin/su $login_user -c "{0}/updatehostinfo.sh {0}/my-instance-info.conf"\n'.format(setup_tools_dir),
-                                '  /bin/su $login_user -c "echo >> ~/.bash_profile; echo export WCOLL=$home_dir/hosts.all >> ~/.bash_profile"\n',
-                                'fi\n',
                                 '\n',
                                 'exit 0\n',
                                 '\n',
@@ -698,42 +715,30 @@ def main():
                             content=Join('', [
                                 '#!/bin/bash -x\n',
                                 '\n',
-                                'asg_num_instances=', Ref(ASG02ClusterSize), '\n',
-                                '((total_instances=', Ref(ASG01ClusterSize), '+', Ref(ASG02ClusterSize), '))\n',
-                                'function ck_for_yum_lck {\n',
-                                '  if [[ -f  /var/run/yum.pid ]]; then\n',
-                                '    sleep 30\n',
-                                '  fi\n',
-                                '  killall -9 yum\n',
-                                '}\n',
-                                '\n',
                                 'if [[ $1 ]]; then\n',
                                 '  my_inst_file=$1\n',
                                 'else\n',
                                 '  my_inst_file={0}/my-instance-info.conf\n'.format(setup_tools_dir),
                                 'fi\n',
                                 '\n',
+                                'asg_num_instances=', Ref(ASG02ClusterSize), '\n',
+                                '((total_instances=', Ref(ASG01ClusterSize), '+', Ref(ASG02ClusterSize), '))\n',
+                                '\n',
+                                'source $my_inst_file\n',
+                                '\n',
+                                '# Just do instance check and set EIP, the exit\n',
+                                'if [[ $2 = "set_eip" ]]; then\n'
+                                '  echo "Doing instance check and setting EIP"\n',
+                                '  # sleep for random time to space out API calls\n',
+                                '  sleep $((1 + RANDOM % 120))\n',
+                                '  {0}/setup-inst.py $my_instance_id $my_inst_file $total_instances {1}\n'.format(setup_tools_dir, asg2),
+                                '  exit 0\n',
+                                'fi\n',
+                                '\n',
+                                '# Set ENV vars only, if $1 only or no args given\n',
+                                '\n',
                                 'echo my_asg={0} >> $my_inst_file\n'.format(asg2),
                                 'echo total_instances=$total_instances >> $my_inst_file\n',
-                                '\n',
-                                'source $my_inst_file\n',
-                                '\n',
-                                'ck_for_yum_lck\n',
-                                'yum install -y aws-cfn-bootstrap\n',
-                                'yum install --enablerepo=epel pdsh -y\n',
-                                'pip install awscli boto3\n',
-                                '\n',
-                                '{0}/setup-inst.py $my_instance_id $my_inst_file $asg_num_instances {1}\n'.format(setup_tools_dir, asg2),
-                                '{0}/setup-ssh.sh $my_inst_file\n'.format(setup_tools_dir),
-                                '\n',
-                                'source $my_inst_file\n',
-                                '\n',
-                                'if [[ "$my_instance_id" = "$eip_instance" ]]; then\n',
-                                '  ln -s {0}/updatehostinfo.sh /usr/local/bin/updatehostinfo\n'.format(setup_tools_dir),
-                                '  ln -s {0}/gethostinfo.py /usr/local/bin/gethostinfo\n'.format(setup_tools_dir),
-                                '  /bin/su $login_user -c "{0}/updatehostinfo.sh {0}/my-instance-info.conf"\n'.format(setup_tools_dir),
-                                '  /bin/su $login_user -c "echo >> ~/.bash_profile; echo export WCOLL=$home_dir/hosts.all >> ~/.bash_profile"\n',
-                                'fi\n',
                                 '\n',
                                 'exit 0\n',
                                 '\n',
@@ -765,7 +770,7 @@ def main():
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
                 Count=Ref(ASG01ClusterSize),
-                Timeout='PT60M'
+                Timeout='PT90M'
             )
         ),
     ))
@@ -782,7 +787,7 @@ def main():
         CreationPolicy=CreationPolicy(
             ResourceSignal=ResourceSignal(
                 Count=Ref(ASG02ClusterSize),
-                Timeout='PT60M'
+                Timeout='PT90M'
             )
         ),
     ))

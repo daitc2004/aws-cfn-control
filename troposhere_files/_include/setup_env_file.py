@@ -45,6 +45,7 @@ env_file = [
     'echo efs_id=', Ref('EfsId'), ' >> $my_inst_file\n',
     'echo new_efs=', Ref('NewEfsFileSystem'), ' >> $my_inst_file\n',
     'echo vol_type=', Ref('VolType'), ' >> $my_inst_file\n',
+    'echo var_log_message_file=', Ref('VarLogMessagesFile'), ' >> $my_inst_file\n',
     '\n',
     'source $my_inst_file\n',
     '\n',
