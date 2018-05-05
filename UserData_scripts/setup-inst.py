@@ -42,6 +42,17 @@ def set_inst_eip (eip, my_instance_id, my_inst_file, instances, client):
 
     return
 
+def inst_running(running, not_running, response):
+
+    for r in response['InstanceStatuses']:
+        #print(r)
+        if (r['InstanceState']['Name']) == 'running':
+            running.append(r['InstanceId'])
+        else:
+            not_running.append(r['InstanceId'])
+
+    return running, not_running
+
 def all_inst_running(instances, client):
 
     logger.info("Checking if all instances are running")
@@ -52,35 +63,19 @@ def all_inst_running(instances, client):
 
     r = []
 
-    while len(instances) > 50:
-        temp_i = instances[:50]
+    while len(instances) > 100:
+        temp_i = instances[:100]
         logger.info("Checking instances are running".format(num_inst))
-        print("Checking if 50 of {} instances are running".format(num_inst))
 
         response = client.describe_instance_status(InstanceIds=temp_i, IncludeAllInstances=False)
         time.sleep(5)
+        (running, not_running) = inst_running(running, not_running, response)
 
-        for r in response['InstanceStatuses']:
-            #print(r)
-            if (r['InstanceState']['Name']) == 'running':
-                running.append(r['InstanceId'])
-            else:
-                not_running.append(r['InstanceId'])
-
-        instances   = instances[50:]
+        instances   = instances[100:]
         print("r:{} nr:{}".format(len(running), len(not_running)))
 
     response = client.describe_instance_status(InstanceIds=instances, IncludeAllInstances=False)
-    print("Checking if last block of instances are running")
-
-    for r in response['InstanceStatuses']:
-        #print(r)
-        if (r['InstanceState']['Name']) == 'running':
-            running.append(r['InstanceId'])
-        else:
-            not_running.append(r['InstanceId'])
-
-    print("r:{} nr:{}".format(len(running), len(not_running)))
+    (running, not_running) = inst_running(running, not_running, response)
 
     if len(running) == num_inst:
         return True, len(running), running
@@ -160,9 +155,9 @@ def main():
     total_instances = sys.argv[3]
     my_asg_short_name = sys.argv[4]
 
-    region = "us-east-1"
-    stack_name = "gpfs-stack3"
-    ip_addr = "18.205.147.249"
+    region = "Ref('AWS::Region')"
+    stack_name = "Ref('AWS::StackName')"
+    ip_addr = "Ref('EIPAddress')"
     instances = list()
 
     asg_client = boto3.client('autoscaling', region_name=region)
