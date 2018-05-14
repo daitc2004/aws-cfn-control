@@ -1,0 +1,3442 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Conditions": {
+    "create_efs": {
+      "Fn::Equals": [
+        {
+          "Ref": "EfsId"
+        },
+        ""
+      ]
+    },
+    "create_elastic_ip": {
+      "Fn::Equals": [
+        {
+          "Ref": "CreateElasticIP"
+        },
+        "True"
+      ]
+    },
+    "not_existing_sg": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingSecurityGroup"
+        },
+        ""
+      ]
+    },
+    "use_public_ip": {
+      "Fn::Equals": [
+        {
+          "Ref": "UsePublicIp"
+        },
+        "True"
+      ]
+    }
+  },
+  "Description": "Launch two AutoScaling Groups, with the option to choose a different instance type for each. A placement group is used.  An instance from the first ASGis assigned an EIP, and pdsh is setup on the instance (that has the EIP) to manager theentire cluster (both ASGs).",
+  "Mappings": {
+    "AWSRegionAMI": {
+      "ap-northeast-1": {
+        "alinux": "ami-ceafcba8",
+        "alinux2": "ami-c2680fa4",
+        "centos6": "ami-88b923ee",
+        "centos7": "ami-25bd2743",
+        "rhel7": "ami-eb50cd8d",
+        "suse11": "ami-f7960a91",
+        "suse12": "ami-bddd41db",
+        "ubuntu14": "ami-15e58f73",
+        "ubuntu16": "ami-48630c2e"
+      },
+      "ap-northeast-2": {
+        "alinux": "ami-863090e8",
+        "alinux2": "ami-3e04a450",
+        "centos6": "ami-7146e61f",
+        "centos7": "ami-7248e81c",
+        "rhel7": "ami-26f75748",
+        "suse11": "ami-afc565c1",
+        "suse12": "ami-2eff5f40",
+        "ubuntu14": "ami-70c0621e",
+        "ubuntu16": "ami-ab77d4c5"
+      },
+      "ap-south-1": {
+        "alinux": "ami-531a4c3c",
+        "alinux2": "ami-3b2f7954",
+        "centos6": "ami-3d9ec952",
+        "centos7": "ami-5d99ce32",
+        "rhel7": "ami-e60e5a89",
+        "suse11": "ami-d22b7fbd",
+        "suse12": "ami-f7267298",
+        "ubuntu14": "ami-916c3ffe",
+        "ubuntu16": "ami-84e3b2eb"
+      },
+      "ap-southeast-1": {
+        "alinux": "ami-68097514",
+        "alinux2": "ami-4f89f533",
+        "centos6": "ami-74fb8908",
+        "centos7": "ami-d2fa88ae",
+        "rhel7": "ami-5ae89f26",
+        "suse11": "ami-2644325a",
+        "suse12": "ami-ce7006b2",
+        "ubuntu14": "ami-e355129f",
+        "ubuntu16": "ami-b7f388cb"
+      },
+      "ap-southeast-2": {
+        "alinux": "ami-942dd1f6",
+        "alinux2": "ami-38708c5a",
+        "centos6": "ami-b0ba46d2",
+        "centos7": "ami-b6bb47d4",
+        "rhel7": "ami-1987757b",
+        "suse11": "ami-05d62467",
+        "suse12": "ami-15e81a77",
+        "ubuntu14": "ami-c625dda4",
+        "ubuntu16": "ami-33ab5251"
+      },
+      "ca-central-1": {
+        "alinux": "ami-a954d1cd",
+        "alinux2": "ami-7549cc11",
+        "centos6": "ami-29ac294d",
+        "centos7": "ami-dcad28b8",
+        "rhel7": "ami-c1cb4ea5",
+        "suse11": "ami-0bd85d6f",
+        "suse12": "ami-61dc5905",
+        "ubuntu14": "ami-bb8206df",
+        "ubuntu16": "ami-173db873"
+      },
+      "eu-central-1": {
+        "alinux": "ami-5652ce39",
+        "alinux2": "ami-1b2bb774",
+        "centos6": "ami-347be65b",
+        "centos7": "ami-337be65c",
+        "rhel7": "ami-194cdc76",
+        "suse11": "ami-2b3cac44",
+        "suse12": "ami-7215851d",
+        "ubuntu14": "ami-fa2fb595",
+        "ubuntu16": "ami-5055cd3f"
+      },
+      "eu-west-1": {
+        "alinux": "ami-d834aba1",
+        "alinux2": "ami-db1688a2",
+        "centos6": "ami-a625b8df",
+        "centos7": "ami-6e28b517",
+        "rhel7": "ami-c90195b0",
+        "suse11": "ami-974cdbee",
+        "suse12": "ami-32b6214b",
+        "ubuntu14": "ami-78d2be01",
+        "ubuntu16": "ami-1b791862"
+      },
+      "eu-west-2": {
+        "alinux": "ami-403e2524",
+        "alinux2": "ami-6d263d09",
+        "centos6": "ami-3d6b7059",
+        "centos7": "ami-ee6a718a",
+        "rhel7": "ami-c1d2caa5",
+        "suse11": "ami-3dc2da59",
+        "suse12": "ami-fbcad29f",
+        "ubuntu14": "ami-aca2b8c8",
+        "ubuntu16": "ami-941e04f0"
+      },
+      "eu-west-3": {
+        "alinux": "ami-8ee056f3",
+        "alinux2": "ami-5ce55321",
+        "centos6": "ami-66fd4b1b",
+        "centos7": "ami-bfff49c2",
+        "rhel7": "ami-dc13a4a1",
+        "suse11": "ami-2e1aad53",
+        "suse12": "ami-f312a58e",
+        "ubuntu14": "ami-88a412f5",
+        "ubuntu16": "ami-c1cf79bc"
+      },
+      "sa-east-1": {
+        "alinux": "ami-84175ae8",
+        "alinux2": "ami-f1337e9d",
+        "centos6": "ami-e3b2f08f",
+        "centos7": "ami-f9adef95",
+        "rhel7": "ami-0e88cb62",
+        "suse11": "ami-59a8eb35",
+        "suse12": "ami-b1a1e2dd",
+        "ubuntu14": "ami-2a82cd46",
+        "ubuntu16": "ami-bb9bd7d7"
+      },
+      "us-east-1": {
+        "alinux": "ami-97785bed",
+        "alinux2": "ami-428aa838",
+        "centos6": "ami-e3fdd999",
+        "centos7": "ami-4bf3d731",
+        "rhel7": "ami-26ebbc5c",
+        "suse11": "ami-3881d042",
+        "suse12": "ami-a03869da",
+        "ubuntu14": "ami-a22323d8",
+        "ubuntu16": "ami-66506c1c"
+      },
+      "us-east-2": {
+        "alinux": "ami-f63b1193",
+        "alinux2": "ami-710e2414",
+        "centos6": "ami-ff48629a",
+        "centos7": "ami-e1496384",
+        "rhel7": "ami-0b1e356e",
+        "suse11": "ami-22e2c947",
+        "suse12": "ami-75143f10",
+        "ubuntu14": "ami-35a09550",
+        "ubuntu16": "ami-965e6bf3"
+      },
+      "us-west-1": {
+        "alinux": "ami-824c4ee2",
+        "alinux2": "ami-4a787a2a",
+        "centos6": "ami-ade6e5cd",
+        "centos7": "ami-65e0e305",
+        "rhel7": "ami-77a2a317",
+        "suse11": "ami-034f4f63",
+        "suse12": "ami-934242f3",
+        "ubuntu14": "ami-77050a17",
+        "ubuntu16": "ami-07585467"
+      },
+      "us-west-2": {
+        "alinux": "ami-f2d3638a",
+        "alinux2": "ami-7f43f307",
+        "centos6": "ami-8b44f2f3",
+        "centos7": "ami-a042f4d8",
+        "rhel7": "ami-223f945a",
+        "suse11": "ami-7eb31906",
+        "suse12": "ami-6bc56f13",
+        "ubuntu14": "ami-8f78c2f7",
+        "ubuntu16": "ami-79873901"
+      }
+    },
+    "EbsOptimized": {
+      "c3.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "c3.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "c3.8xlarge": {
+        "EBSOpt": "False"
+      },
+      "c3.large": {
+        "EBSOpt": "False"
+      },
+      "c3.xlarge": {
+        "EBSOpt": "True"
+      },
+      "c4.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "c4.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "c4.8xlarge": {
+        "EBSOpt": "True"
+      },
+      "c4.large": {
+        "EBSOpt": "True"
+      },
+      "c4.xlarge": {
+        "EBSOpt": "True"
+      },
+      "c5.18xlarge": {
+        "EBSOpt": "True"
+      },
+      "c5.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "c5.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "c5.9xlarge": {
+        "EBSOpt": "True"
+      },
+      "c5.large": {
+        "EBSOpt": "True"
+      },
+      "c5.xlarge": {
+        "EBSOpt": "True"
+      },
+      "cc2.8xlarge": {
+        "EBSOpt": "False"
+      },
+      "cg1.4xlarge": {
+        "EBSOpt": "False"
+      },
+      "cr1.8xlarge": {
+        "EBSOpt": "False"
+      },
+      "d2.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "d2.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "d2.8xlarge": {
+        "EBSOpt": "True"
+      },
+      "d2.xlarge": {
+        "EBSOpt": "True"
+      },
+      "f1.16xlarge": {
+        "EBSOpt": "True"
+      },
+      "f1.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "g2.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "g2.8xlarge": {
+        "EBSOpt": "True"
+      },
+      "i2.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "i2.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "i2.8xlarge": {
+        "EBSOpt": "False"
+      },
+      "i2.large": {
+        "EBSOpt": "False"
+      },
+      "i2.xlarge": {
+        "EBSOpt": "True"
+      },
+      "i3.16xlarge": {
+        "EBSOpt": "True"
+      },
+      "i3.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "i3.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "i3.8xlarge": {
+        "EBSOpt": "True"
+      },
+      "i3.large": {
+        "EBSOpt": "True"
+      },
+      "i3.xlarge": {
+        "EBSOpt": "True"
+      },
+      "m3.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "m3.large": {
+        "EBSOpt": "False"
+      },
+      "m3.medium": {
+        "EBSOpt": "False"
+      },
+      "m3.xlarge": {
+        "EBSOpt": "True"
+      },
+      "m4.10xlarge": {
+        "EBSOpt": "True"
+      },
+      "m4.16xlarge": {
+        "EBSOpt": "True"
+      },
+      "m4.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "m4.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "m4.large": {
+        "EBSOpt": "True"
+      },
+      "m4.xlarge": {
+        "EBSOpt": "True"
+      },
+      "p2.16xlarge": {
+        "EBSOpt": "True"
+      },
+      "p2.8xlarge": {
+        "EBSOpt": "True"
+      },
+      "p2.xlarge": {
+        "EBSOpt": "True"
+      },
+      "r3.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "r3.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "r3.8xlarge": {
+        "EBSOpt": "False"
+      },
+      "r3.large": {
+        "EBSOpt": "False"
+      },
+      "r3.xlarge": {
+        "EBSOpt": "True"
+      },
+      "r4.16xlarge": {
+        "EBSOpt": "True"
+      },
+      "r4.2xlarge": {
+        "EBSOpt": "True"
+      },
+      "r4.4xlarge": {
+        "EBSOpt": "True"
+      },
+      "r4.8xlarge": {
+        "EBSOpt": "True"
+      },
+      "r4.large": {
+        "EBSOpt": "True"
+      },
+      "r4.xlarge": {
+        "EBSOpt": "True"
+      },
+      "t2.2xlarge": {
+        "EBSOpt": "False"
+      },
+      "t2.large": {
+        "EBSOpt": "False"
+      },
+      "t2.medium": {
+        "EBSOpt": "False"
+      },
+      "t2.micro": {
+        "EBSOpt": "False"
+      },
+      "t2.nano": {
+        "EBSOpt": "False"
+      },
+      "t2.small": {
+        "EBSOpt": "False"
+      },
+      "t2.xlarge": {
+        "EBSOpt": "False"
+      },
+      "x1.16xlarge": {
+        "EBSOpt": "True"
+      },
+      "x1.32xlarge": {
+        "EBSOpt": "True"
+      }
+    },
+    "OSInfo": {
+      "LoginID": {
+        "alinux": "ec2-user",
+        "alinux2": "ec2-user",
+        "centos6": "centos",
+        "centos7": "centos",
+        "rhel7": "ec2-user",
+        "suse11": "root",
+        "suse12": "root",
+        "ubuntu14": "ubuntu",
+        "ubuntu16": "ubuntu"
+      }
+    }
+  },
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "Instance Configuration"
+          },
+          "Parameters": [
+            "ASG01InstanceType",
+            "ASG02InstanceType",
+            "OperatingSystem",
+            "EC2KeyName",
+            "UsePublicIp"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Network Configuration"
+          },
+          "Parameters": [
+            "VPCId",
+            "Subnet",
+            "ExistingSecurityGroup",
+            "CreateElasticIP"
+          ]
+        },
+        {
+          "Label": {
+            "default": "First AutoScaling Group Configuration"
+          },
+          "Parameters": [
+            "ASG01ClusterSize",
+            "ASG01MaxClusterSize",
+            "ASG01MinClusterSize"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Second AutoScaling Group Configuration"
+          },
+          "Parameters": [
+            "ASG02ClusterSize",
+            "ASG02MaxClusterSize",
+            "ASG02MinClusterSize"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Additional Configuration Parameters"
+          },
+          "Parameters": [
+            "AdditionalBucketName",
+            "EfsId",
+            "SshAccessCidr"
+          ]
+        }
+      ],
+      "ParameterLabels": {
+        "ASG01ClusterSize": {
+          "default": "Initial ASG 01 cluster size"
+        },
+        "ASG01InstanceType": {
+          "default": "ASG 01 Instance Type"
+        },
+        "ASG01MaxClusterSize": {
+          "default": "Max ASG 01 cluster size"
+        },
+        "ASG01MinClusterSize": {
+          "default": "Min ASG 01 cluster size"
+        },
+        "ASG02ClusterSize": {
+          "default": "Initial ASG 02 cluster size"
+        },
+        "ASG02InstanceType": {
+          "default": "ASG 02 Instance Type"
+        },
+        "ASG02MaxClusterSize": {
+          "default": "Max ASG 02 cluster size"
+        },
+        "ASG02MinClusterSize": {
+          "default": "Min ASG 02 cluster size"
+        },
+        "AdditionalBucketName": {
+          "default": "Additional Bucket"
+        },
+        "CreateElasticIP": {
+          "default": "Create and Elaastic IP"
+        },
+        "EC2KeyName": {
+          "default": "EC2 Key Name"
+        },
+        "EfsId": {
+          "default": "EFS File System ID"
+        },
+        "ExistingSecurityGroup": {
+          "default": "Existing Security Group"
+        },
+        "OperatingSystem": {
+          "default": "Instance OS"
+        },
+        "SshAccessCidr": {
+          "default": "SSH Access CIDR Block"
+        },
+        "Subnet": {
+          "default": "Subnet ID"
+        },
+        "UsePublicIp": {
+          "default": "Use a Public IP"
+        },
+        "VPCId": {
+          "default": "VPC ID"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ElasticIP": {
+      "Description": "Elastic IP address for the cluster",
+      "Value": {
+        "Ref": "EIPAddress"
+      }
+    }
+  },
+  "Parameters": {
+    "ASG01ClusterSize": {
+      "ConstraintDescription": "Should be an integer",
+      "Default": "2",
+      "Description": "ASG 01 Initial number of instances",
+      "Type": "Number"
+    },
+    "ASG01InstanceType": {
+      "AllowedValues": [
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c5.18xlarge",
+        "i3.8xlarge",
+        "i3.16xlarge",
+        "m4.10xlarge",
+        "m4.16xlarge",
+        "m5.12xlarge",
+        "m5.24xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "r4.4xlarge",
+        "r4.8xlarge",
+        "r4.16xlarge",
+        "t2.2xlarge"
+      ],
+      "ConstraintDescription": "Must be a valid instance type for that region, with HVM64 support",
+      "Default": "c4.8xlarge",
+      "Description": "First AutoScaling Group instance type",
+      "Type": "String"
+    },
+    "ASG01MaxClusterSize": {
+      "ConstraintDescription": "Should be an integer",
+      "Default": "2",
+      "Description": "ASG 01 Max number of instances that can be launch in the ASG",
+      "Type": "Number"
+    },
+    "ASG01MinClusterSize": {
+      "ConstraintDescription": "Should be an integer",
+      "Default": "0",
+      "Description": "ASG 01 Min number of instances that can be launch in the ASG (should be left at 0)",
+      "Type": "Number"
+    },
+    "ASG02ClusterSize": {
+      "ConstraintDescription": "Should be an integer",
+      "Default": "2",
+      "Description": "ASG 02 Initial number of instances",
+      "Type": "Number"
+    },
+    "ASG02InstanceType": {
+      "AllowedValues": [
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "c5.18xlarge",
+        "i3.8xlarge",
+        "i3.16xlarge",
+        "m4.10xlarge",
+        "m4.16xlarge",
+        "m5.12xlarge",
+        "m5.24xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "r4.4xlarge",
+        "r4.8xlarge",
+        "r4.16xlarge",
+        "t2.2xlarge"
+      ],
+      "ConstraintDescription": "Must be a valid instance type for that region, with HVM64 support",
+      "Default": "c4.8xlarge",
+      "Description": "Second AutoScaling Group instance type",
+      "Type": "String"
+    },
+    "ASG02MaxClusterSize": {
+      "ConstraintDescription": "Should be an integer",
+      "Default": "2",
+      "Description": "ASG 02 Max number of instances that can be launch in the ASG",
+      "Type": "Number"
+    },
+    "ASG02MinClusterSize": {
+      "ConstraintDescription": "Should be an integer",
+      "Default": "0",
+      "Description": "ASG 02 Min number of instances that can be launch in the ASG (should be left at 0)",
+      "Type": "Number"
+    },
+    "AdditionalBucketName": {
+      "Description": "Additional bucket for other files.",
+      "Type": "String"
+    },
+    "CreateElasticIP": {
+      "AllowedValues": [
+        "True",
+        "False"
+      ],
+      "ConstraintDescription": "True/False",
+      "Default": "True",
+      "Description": "Create an Elasic IP address, that will be assinged to an instance in the stack",
+      "Type": "String"
+    },
+    "EC2KeyName": {
+      "ConstraintDescription": "REQUIRED: Must be a valud EC2 key pair",
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance.",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "EfsId": {
+      "Description": "EFS ID (e.g. fs-1234abcd)",
+      "Type": "String"
+    },
+    "ExistingSecurityGroup": {
+      "Description": "Choose an existing Security Group ID, e.g. sg-abcd1234",
+      "Type": "String"
+    },
+    "OperatingSystem": {
+      "AllowedValues": [
+        "alinux",
+        "alinux2",
+        "centos6",
+        "centos7",
+        "rhel7",
+        "suse11",
+        "suse12",
+        "ubuntu14",
+        "ubuntu16"
+      ],
+      "ConstraintDescription": "Must be: alinux, alinux2, centos6, centos7, rhel7, suse11, suse12, ubuntu14, ubuntu16",
+      "Default": "alinux",
+      "Description": "Operating System",
+      "Type": "String"
+    },
+    "SshAccessCidr": {
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "Must be a valid CIDR x.x.x.x/x",
+      "Default": "0.0.0.0/0",
+      "Description": "CIDR Block for SSH access, default 0.0.0.0/0",
+      "Type": "String"
+    },
+    "Subnet": {
+      "Description": "Subnet IDs",
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "UsePublicIp": {
+      "AllowedValues": [
+        "True",
+        "False"
+      ],
+      "ConstraintDescription": "True/False",
+      "Default": "True",
+      "Description": "Should a public IP address be given to the instance",
+      "Type": "String"
+    },
+    "VPCId": {
+      "Description": "VPC Id for this instance",
+      "Type": "AWS::EC2::VPC::Id"
+    }
+  },
+  "Resources": {
+    "ASG01LaunchConfiguration": {
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "files": {
+              "/opt/aws/setup-tools/gethostinfo.py": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env python\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "import sys\n",
+                        "import boto3\n",
+                        "\n",
+                        "def print_priv_dns(instances, ec2):\n",
+                        "\n",
+                        "    for i in instances:\n",
+                        "        print(ec2.Instance(i).private_dns_name.replace('.ec2.internal', ''))\n",
+                        "\n",
+                        "def get_asg_from_stack(stack_name, client):\n",
+                        "\n",
+                        "    asg = list()\n",
+                        "\n",
+                        "    stk_response = client.describe_stack_resources(StackName=stack_name)\n",
+                        "\n",
+                        "    for resp in stk_response['StackResources']:\n",
+                        "        for resrc_type in resp:\n",
+                        "            if resrc_type == \"ResourceType\":\n",
+                        "                if resp[resrc_type] == \"AWS::AutoScaling::AutoScalingGroup\":\n",
+                        "                    asg.append(resp['PhysicalResourceId'])\n",
+                        "\n",
+                        "    return asg\n",
+                        "\n",
+                        "def get_inst_from_asg(asg, client_asg, ec2 ):\n",
+                        "\n",
+                        "    response = client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])\n",
+                        "\n",
+                        "    instances = list()\n",
+                        "    # Build instance IDs list\n",
+                        "    for r in response['AutoScalingGroups']:\n",
+                        "        for i in r['Instances']:\n",
+                        "            instances.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "\n",
+                        "    return instances\n",
+                        "\n",
+                        "\n",
+                        "def main():\n",
+                        "\n",
+                        "    region = \"",
+                        {
+                          "Ref": "AWS::Region"
+                        },
+                        "\"\n",
+                        "    stack_name = \"",
+                        {
+                          "Ref": "AWS::StackName"
+                        },
+                        "\"\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    asg_client = boto3.client('autoscaling', region_name=region)\n",
+                        "    ec2 = boto3.resource('ec2', region_name=region)\n",
+                        "    cfn_client = boto3.client('cloudformation', region_name=region)\n",
+                        "\n",
+                        "    asg_list = get_asg_from_stack(stack_name, cfn_client)\n",
+                        "\n",
+                        "    for asg in asg_list:\n",
+                        "        for i in get_inst_from_asg(asg, asg_client, ec2):\n",
+                        "            instances.append(i)\n",
+                        "\n",
+                        "    print_priv_dns(instances, ec2)\n",
+                        "\n",
+                        "\n",
+                        "\n",
+                        "if __name__ == '__main__':\n",
+                        "    try:\n",
+                        "        sys.exit(main())\n",
+                        "    except KeyboardInterrupt:\n",
+                        "        print 'Received Keyboard interrupt.'\n",
+                        "        print 'Exiting...'\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              },
+              "/opt/aws/setup-tools/setup-inst.py": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env python\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "import sys\n",
+                        "import time\n",
+                        "import boto3\n",
+                        "import logging\n",
+                        "import operator\n",
+                        "\n",
+                        "'''\n",
+                        "Description:\n",
+                        "Wait for all instances to be 'running', and then set the\n",
+                        "Elastic IP address to the instance that has been up the longest.\n",
+                        "'''\n",
+                        "\n",
+                        "progname = 'setup-inst'\n",
+                        "\n",
+                        "\n",
+                        "def set_inst_eip (eip, my_instance_id, my_inst_file, instances, client):\n",
+                        "\n",
+                        "    logger.info(\"Setting EIP\")\n",
+                        "\n",
+                        "    launch_time = dict()\n",
+                        "\n",
+                        "    i = dict()\n",
+                        "    response = client.describe_instances(InstanceIds=instances,DryRun=False)\n",
+                        "    for r in response['Reservations']:\n",
+                        "        for resp_i in (r['Instances']):\n",
+                        "            i = resp_i['InstanceId']\n",
+                        "            time_tuple = (resp_i['LaunchTime'].timetuple())\n",
+                        "            launch_time_secs = time.mktime(time_tuple)\n",
+                        "            launch_time[i] = launch_time_secs\n",
+                        "\n",
+                        "    launch_time_list = sorted(launch_time.items(), key=operator.itemgetter(1))\n",
+                        "    inst_to_alloc_eip = launch_time_list[1][0]\n",
+                        "\n",
+                        "    if inst_to_alloc_eip == my_instance_id:\n",
+                        "        response = client.associate_address(InstanceId=inst_to_alloc_eip, PublicIp=eip, DryRun=False)\n",
+                        "        f = open(my_inst_file, 'a')\n",
+                        "        f.write('eip_instance={0}\\n'.format(inst_to_alloc_eip))\n",
+                        "        f.close()\n",
+                        "        logger.info('Assigned {0} to instance {1}'.format(eip, inst_to_alloc_eip))\n",
+                        "\n",
+                        "\n",
+                        "def all_inst_running(instances, client):\n",
+                        "\n",
+                        "    logger.info(\"Checking if all instances are running\")\n",
+                        "\n",
+                        "    num_inst = len(instances)\n",
+                        "\n",
+                        "    response = client.describe_instance_status(InstanceIds=instances, IncludeAllInstances=False)\n",
+                        "\n",
+                        "    running = list()\n",
+                        "    not_running = list()\n",
+                        "\n",
+                        "    for r in response['InstanceStatuses']:\n",
+                        "        #print(r)\n",
+                        "        if (r['InstanceState']['Name']) == 'running':\n",
+                        "            running.append(r['InstanceId'])\n",
+                        "        else:\n",
+                        "            not_running.append(r['InstanceId'])\n",
+                        "\n",
+                        "    if len(running) == num_inst:\n",
+                        "        return True, len(running), running\n",
+                        "\n",
+                        "    return False, len(not_running), not_running\n",
+                        "\n",
+                        "\n",
+                        "def get_asg_from_stack(stack_name, client):\n",
+                        "\n",
+                        "    logger.info('Getting the ASG(s) from stack {}'.format(stack_name))\n",
+                        "\n",
+                        "    asg = list()\n",
+                        "\n",
+                        "    stk_response = client.describe_stack_resources(StackName=stack_name)\n",
+                        "\n",
+                        "    for resp in stk_response['StackResources']:\n",
+                        "        for resrc_type in resp:\n",
+                        "            if resrc_type == \"ResourceType\":\n",
+                        "                if resp[resrc_type] == \"AWS::AutoScaling::AutoScalingGroup\":\n",
+                        "                    asg.append(resp['PhysicalResourceId'])\n",
+                        "\n",
+                        "    return asg\n",
+                        "\n",
+                        "def ck_asg_inst_status(asg, client_asg, ec2):\n",
+                        "    \"\"\"\n",
+                        "    returns two lists:  list of in service instances, and not in service\n",
+                        "    :param asg:\n",
+                        "    :param client_asg:\n",
+                        "    :param ec2:\n",
+                        "    :return:\n",
+                        "    \"\"\"\n",
+                        "\n",
+                        "    logger.info('Checking the instance status for ASG {}'.format(asg))\n",
+                        "\n",
+                        "    response = client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])\n",
+                        "    in_service = list()\n",
+                        "    not_in_service = list()\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    # Build instance IDs list\n",
+                        "    for r in response['AutoScalingGroups']:\n",
+                        "        for i in r['Instances']:\n",
+                        "            if ec2.Instance(i['LifecycleState']).instance_id == 'InService':\n",
+                        "                in_service.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "                instances.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "            else:\n",
+                        "                not_in_service.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "\n",
+                        "    return in_service, not_in_service\n",
+                        "\n",
+                        "\n",
+                        "def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name):\n",
+                        "\n",
+                        "    logger.info('Checking the current instance status for {}'.format(' '.join(asg_list)))\n",
+                        "\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    while True:\n",
+                        "        if int(total_instances) == len(instances):\n",
+                        "            break\n",
+                        "        for asg in asg_list:\n",
+                        "            if my_asg_short_name in asg:\n",
+                        "                (in_serv, not_in_serv)  = ck_asg_inst_status(asg, asg_client, ec2)\n",
+                        "                for i in in_serv:\n",
+                        "                    if in_serv not in instances:\n",
+                        "                        instances.append(i)\n",
+                        "        time.sleep(1)\n",
+                        "\n",
+                        "    return instances\n",
+                        "\n",
+                        "\n",
+                        "def main():\n",
+                        "\n",
+                        "    logger.info('Setup the instance...')\n",
+                        "\n",
+                        "    my_instance_id = sys.argv[1]\n",
+                        "    my_inst_file = sys.argv[2]\n",
+                        "    total_instances = sys.argv[3]\n",
+                        "    my_asg_short_name = sys.argv[4]\n",
+                        "\n",
+                        "    region = \"",
+                        {
+                          "Ref": "AWS::Region"
+                        },
+                        "\"\n",
+                        "    stack_name = \"",
+                        {
+                          "Ref": "AWS::StackName"
+                        },
+                        "\"\n",
+                        "    ip_addr = \"",
+                        {
+                          "Ref": "EIPAddress"
+                        },
+                        "\"\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    asg_client = boto3.client('autoscaling', region_name=region)\n",
+                        "    ec2 = boto3.resource('ec2', region_name=region)\n",
+                        "    cfn_client = boto3.client('cloudformation', region_name=region)\n",
+                        "    stk_response = cfn_client.describe_stacks(StackName=stack_name)\n",
+                        "    client_ec2 = boto3.client('ec2', region_name=region)\n",
+                        "\n",
+                        "    asg_list = get_asg_from_stack(stack_name, cfn_client)\n",
+                        "\n",
+                        "    instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)\n",
+                        "\n",
+                        "    all_running_status = False\n",
+                        "    inst_count = 0\n",
+                        "\n",
+                        "    while not all_running_status:\n",
+                        "        (all_running_status, inst_count, inst_status_list) = all_inst_running(instances, client_ec2)\n",
+                        "        if not all_running_status:\n",
+                        "            logger.info('Waiting for all instances to be running')\n",
+                        "            logger.info('Instances not running {0}'.format(', '.join(inst_status_list)))\n",
+                        "            time.sleep(10)\n",
+                        "            # update instances\n",
+                        "            o_instances = instances\n",
+                        "            instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)\n",
+                        "            if instances != o_instances:\n",
+                        "                logger.info('Some instances that were running are not now')\n",
+                        "                for down_i in o_instances:\n",
+                        "                    if down_i not in instances:\n",
+                        "                        logger.info('Instance is now not running: {0}'.format(down_i))\n",
+                        "\n",
+                        "    logger.info(\"All {0} instances running in {1}\".format(all_inst_running(instances, client_ec2), my_asg_short_name))\n",
+                        "\n",
+                        "    time.sleep(5)\n",
+                        "\n",
+                        "    # only set the EIP to the first Auto Scaling Group\n",
+                        "    if my_asg_short_name == \"AutoScalingGroup01\":\n",
+                        "        set_inst_eip(ip_addr, my_instance_id, my_inst_file, instances, client_ec2)\n",
+                        "\n",
+                        "\n",
+                        "if __name__ == \"__main__\":\n",
+                        "\n",
+                        "    log_file = \"/var/log/{0}.log\".format(progname)\n",
+                        "\n",
+                        "    logging.basicConfig(level=logging.DEBUG,\n",
+                        "                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',\n",
+                        "                        datefmt='%m-%d %H:%M',\n",
+                        "                        filename=log_file)\n",
+                        "\n",
+                        "    logger = logging.getLogger(progname)\n",
+                        "\n",
+                        "    try:\n",
+                        "        sys.exit(main())\n",
+                        "    except KeyboardInterrupt:\n",
+                        "        print '\\nReceived Keyboard interrupt.'\n",
+                        "        print 'Exiting...'\n",
+                        "    except ValueError as e:\n",
+                        "        logger.info('ERROR: {0}'.format(e))\n",
+                        "\n",
+                        "\n",
+                        "\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": "root",
+                "mode": "000700",
+                "owner": "root"
+              },
+              "/opt/aws/setup-tools/setup-main.sh": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "#!/bin/bash -x\n",
+                      "\n",
+                      "total_instances=",
+                      {
+                        "Ref": "ASG01ClusterSize"
+                      },
+                      "\n",
+                      "function ck_for_yum_lck {\n",
+                      "  if [[ -f  /var/run/yum.pid ]]; then\n",
+                      "    sleep 30\n",
+                      "  fi\n",
+                      "  killall -9 yum\n",
+                      "}\n",
+                      "\n",
+                      "if [[ $1 ]]; then\n",
+                      "  my_inst_file=$1\n",
+                      "else\n",
+                      "  my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
+                      "fi\n",
+                      "\n",
+                      "echo my_asg=AutoScalingGroup01 >> $my_inst_file\n",
+                      "\n",
+                      "source $my_inst_file\n",
+                      "\n",
+                      "ck_for_yum_lck\n",
+                      "yum install -y aws-cfn-bootstrap\n",
+                      "yum install --enablerepo=epel pdsh -y\n",
+                      "pip install awscli boto3\n",
+                      "\n",
+                      "/opt/aws/setup-tools/setup-inst.py $my_instance_id $my_inst_file $total_instances AutoScalingGroup01\n",
+                      "/opt/aws/setup-tools/setup-ssh.sh $my_inst_file\n",
+                      "\n",
+                      "source $my_inst_file\n",
+                      "\n",
+                      "if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                      "  ln -s /opt/aws/setup-tools/updatehostinfo.sh /usr/local/bin/updatehostinfo\n",
+                      "  ln -s /opt/aws/setup-tools/gethostinfo.py /usr/local/bin/gethostinfo\n",
+                      "  /bin/su $login_user -c \"/opt/aws/setup-tools/updatehostinfo.sh /opt/aws/setup-tools/my-instance-info.conf\"\n",
+                      "  /bin/su $login_user -c \"echo >> ~/.bash_profile; echo export WCOLL=$home_dir/hosts.all >> ~/.bash_profile\"\n",
+                      "fi\n",
+                      "\n",
+                      "exit 0\n",
+                      "\n"
+                    ]
+                  ]
+                },
+                "encoding": "plain",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              },
+              "/opt/aws/setup-tools/setup-ssh.sh": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env bash\n",
+                        "\n",
+                        "set -x\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "\n",
+                        "function setup_ssh {\n",
+                        "\n",
+                        "  # EFS mount check is already in setup-main\n",
+                        "\n",
+                        "  ssh_key_dir=/mnt/efs/${stack_name}\n",
+                        "  ssh_key_file=${ssh_key_dir}/id_rsa\n",
+                        "\n",
+                        "  if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                        "    echo \"On the EIP instance, creating key $ssh_key_file\"\n",
+                        "\n",
+                        "    # make key dir\n",
+                        "    mkdir -p $ssh_key_dir\n",
+                        "    mkdir_rc=$?\n",
+                        "    if [[ \"$mkdir_rc\" != 0 ]]; then\n",
+                        "      echo \"Could not create $ssh_key_dir\"\n",
+                        "      return\n",
+                        "    fi\n",
+                        "\n",
+                        "    # make keys\n",
+                        "    ssh-keygen -b 2048 -t rsa -f $ssh_key_file -q -N ''\n",
+                        "    ssh_rc=$?\n",
+                        "    if [[ \"$ssh_rc\" != 0 ]]; then\n",
+                        "      echo \"Could not generate ssy key\"\n",
+                        "      return\n",
+                        "    fi\n",
+                        "\n",
+                        "  fi\n",
+                        "\n",
+                        "  echo \"Copying ssh keys to ${home_dir}/.ssh\"\n",
+                        "\n",
+                        "  let ssh_count=1\n",
+                        "  let ssh_rc=0\n",
+                        "\n",
+                        "  while [[ \"$ssh_count\" -lt 11 ]]; do\n",
+                        "    if [[ -e \"${ssh_key_dir}/id_rsa\" ]]; then\n",
+                        "      cp ${ssh_key_dir}/id_rsa $home_dir/.ssh/id_rsa\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      cp ${ssh_key_dir}/id_rsa.pub $home_dir/.ssh/id_rsa.pub\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      cat $home_dir/.ssh/id_rsa.pub >> $home_dir/.ssh/authorized_keys\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      chown ${login_user}:${login_user} $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa $home_dir/.ssh/authorized_keys\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      chmod 600 $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      if [[ \"$ssh_rc\" -gt 0 ]]; then\n",
+                        "        echo \"Problem when copying ssh key files\"\n",
+                        "        return\n",
+                        "      fi\n",
+                        "      echo \"Successfully setup ssh keys in ${home_dir}/.ssh\"\n",
+                        "      return\n",
+                        "    else\n",
+                        "      echo \"Can't see ssh key yet.  Waiting...\"\n",
+                        "      sleep 60\n",
+                        "      if [[ \"$ssh_count\" -eq 11 ]]; then\n",
+                        "        echo \"Could not copy ssh key files\"\n",
+                        "        return\n",
+                        "      fi\n",
+                        "    fi\n",
+                        "    ((ssh_count=$ssh_count+1))\n",
+                        "  done\n",
+                        "  return\n",
+                        "}\n",
+                        "\n",
+                        "function enable_root_ssh {\n",
+                        "\n",
+                        "  echo \"${0}: setting up root ssh\"\n",
+                        "\n",
+                        "  cp /home/$login_user/.ssh/id_rsa /root/.ssh/\n",
+                        "  cp /home/$login_user/.ssh/id_rsa.pub /root/.ssh/\n",
+                        "  cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys\n",
+                        "  sed -i.bak 's/PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  sed -i.bak2 's/#PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  service sshd restart\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
+                        "\n",
+                        "if [[ $1 ]]; then\n",
+                        "  my_inst_file=$1\n",
+                        "fi\n",
+                        "\n",
+                        "if [[ ! -e \"$my_inst_file\" ]]; then\n",
+                        "  echo \"$my_inst_file does not exist.  Exiting...\"\n",
+                        "  exit 1\n",
+                        "fi\n",
+                        "\n",
+                        "source $my_inst_file\n",
+                        "setup_ssh\n",
+                        "enable_root_ssh\n",
+                        "\n",
+                        "exit 0\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": "root",
+                "mode": "000700",
+                "owner": "root"
+              },
+              "/opt/aws/setup-tools/updatehostinfo.sh": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env bash\n",
+                        "\n",
+                        "set -x\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "if [[ $1 ]]; then\n",
+                        "  my_inst_info=$1\n",
+                        "else\n",
+                        "  my_inst_info=/opt/aws/setup-tools/my-instance-info.conf\n",
+                        "fi\n",
+                        "\n",
+                        "source $my_inst_info\n",
+                        "\n",
+                        "for h in $($setup_tools_dir/gethostinfo.py); do\n",
+                        "    ssh -o StrictHostKeyChecking=no $h date > /dev/null;\n",
+                        "done\n",
+                        "\n",
+                        "echo -n \"Creating/Updating $home_dir/hosts.all ...\"\n",
+                        "$setup_tools_dir/gethostinfo.py > $home_dir/hosts.all\n",
+                        "echo \"done\"\n",
+                        "\n",
+                        "exit 0"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "AssociatePublicIpAddress": {
+          "Ref": "UsePublicIp"
+        },
+        "IamInstanceProfile": {
+          "Ref": "RootInstanceProfile"
+        },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Ref": "OperatingSystem"
+            }
+          ]
+        },
+        "InstanceType": {
+          "Ref": "ASG01InstanceType"
+        },
+        "KeyName": {
+          "Ref": "EC2KeyName"
+        },
+        "SecurityGroups": {
+          "Fn::If": [
+            "not_existing_sg",
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              }
+            ],
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              },
+              {
+                "Ref": "ExistingSecurityGroup"
+              }
+            ]
+          ]
+        },
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -x\n",
+                "\n",
+                "##exit 0\n",
+                "\n",
+                "setup_tools_dir=/opt/aws/setup-tools\n",
+                "mkdir -p $setup_tools_dir\n",
+                "chmod 755 $setup_tools_dir\n",
+                "\n",
+                "login_user=",
+                {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "\n",
+                "\n",
+                "if [[ $1 ]]; then\n",
+                "  my_inst_file=$1\n",
+                "else\n",
+                "  my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
+                "fi\n",
+                "\n",
+                "source $my_inst_file\n",
+                "\n",
+                "home_dir=/home/$login_user\n",
+                "if [[ \"$login_user\" = \"\" ]]; then\n",
+                "  login_user=\"root\"\n",
+                "  home_dir=\"/root\"\n",
+                "fi\n",
+                "echo DATE=$(date \"+%Y%m%d.%M%S\") >> $my_inst_file\n",
+                "echo login_user=$login_user >> $my_inst_file\n",
+                "echo setup_tools_dir=$setup_tools_dir >> $my_inst_file\n",
+                "echo my_inst_file=$my_inst_file >> $my_inst_file\n",
+                "echo my_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id) >> $my_inst_file\n",
+                "echo operating_system=",
+                {
+                  "Ref": "OperatingSystem"
+                },
+                " >> $my_inst_file\n",
+                "echo home_dir=$home_dir >> $my_inst_file\n",
+                "echo gethostinfo_filename=$setup_tools_dir/gethostinfo.py >> $my_inst_file\n",
+                "echo region=",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " >> $my_inst_file\n",
+                "echo stack_name=",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                " >> $my_inst_file\n",
+                "echo eip_address=",
+                {
+                  "Ref": "EIPAddress"
+                },
+                " >> $my_inst_file\n",
+                "echo efs_id=",
+                {
+                  "Ref": "EfsId"
+                },
+                " >> $my_inst_file\n",
+                "echo new_efs=",
+                {
+                  "Ref": "NewEfsFileSystem"
+                },
+                " >> $my_inst_file\n",
+                "\n",
+                "source $my_inst_file\n",
+                "\n",
+                "echo /usr/local/lib/python2.7/site-packages/ >> /usr/lib/python2.7/site-packages/usrlocal.pth\n",
+                "\n",
+                "asg_name=\"AutoScalingGroup01\"\n",
+                "init_cluster_size=\"",
+                {
+                  "Ref": "ASG01ClusterSize"
+                },
+                "\"\n",
+                "launch_config=\"ASG01LaunchConfiguration\"\n",
+                "\n",
+                "#@IgnoreInspection BashAddShebang\n",
+                "\n",
+                "#\n",
+                "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                "#\n",
+                "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                "# except in compliance with the License. A copy of the License is located at\n",
+                "#\n",
+                "#     http://aws.amazon.com/apache2.0/\n",
+                "#\n",
+                "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                "# License for the specific language governing permissions and limitations under the License.\n",
+                "#\n",
+                "\n",
+                "function ck_for_yum_lck {\n",
+                "  if [[ -f  /var/run/yum.pid ]]; then\n",
+                "    sleep 30\n",
+                "  fi\n",
+                "  /usr/bin/killall -9 yum\n",
+                "}\n",
+                "\n",
+                "function fix_cfn_init {\n",
+                "  # Setup CFN init and signal\n",
+                "  CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-init$\")\n",
+                "  test_cfn_init_rc=$?\n",
+                "\n",
+                "  if [[ \"$test_cfn_init_rc\" != 0 ]]; then\n",
+                "      if [[ \"$operating_system\" = \"rhel7\" ]]; then\n",
+                "          yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                "      else\n",
+                "          yum install epel-release -y\n",
+                "      fi\n",
+                "\n",
+                "      while :\n",
+                "      do\n",
+                "        rpm -q pystache python-daemon python-setuptools\n",
+                "        rpm_ck=$?\n",
+                "\n",
+                "        if [[ \"$rpm_ck\" != 0 ]]; then\n",
+                "          yum install pystache python-daemon python-setuptools -y\n",
+                "          curl -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm\n",
+                "          rpm -ivh aws-cfn-bootstrap-latest.amzn1.noarch.rpm\n",
+                "          export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/site-package\n",
+                "        else\n",
+                "          return\n",
+                "        fi\n",
+                "        sleep 1\n",
+                "      done\n",
+                "  fi\n",
+                "}\n",
+                "\n",
+                "function install_awscli {\n",
+                "\n",
+                "  while :\n",
+                "  do\n",
+                "    aws --version\n",
+                "    aws_ck=$?\n",
+                "\n",
+                "    if [[ \"$aws_ck\" != 0 ]]; then\n",
+                "      pip install awscli\n",
+                "    else\n",
+                "      return\n",
+                "    fi\n",
+                "    sleep 1\n",
+                "  done\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function install_pip {\n",
+                "\n",
+                "  while :\n",
+                "  do\n",
+                "    pip -V\n",
+                "    pip_ck=$?\n",
+                "\n",
+                "    if [[ \"$pip_ck\" != 0 ]]; then\n",
+                "      pushd /tmp\n",
+                "      curl -O https://bootstrap.pypa.io/get-pip.py\n",
+                "      python get-pip.py\n",
+                "      popd\n",
+                "    else\n",
+                "      return\n",
+                "    fi\n",
+                "    sleep 1\n",
+                "  done\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function build_host_file {\n",
+                "\n",
+                "  let max_wait_time=900  # in seconds\n",
+                "  let tot_wait_time=0\n",
+                "  let sleep_time=5\n",
+                "\n",
+                "  export WCOLL=$home_dir/hosts.all\n",
+                "  let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "  while [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; do\n",
+                "    echo \"Updating host info ...\"\n",
+                "    /bin/su $login_user -c $setup_tools_dir/updatehostinfo.sh\n",
+                "    echo \"Running 'pdsh date' to determine reachable instance count\"\n",
+                "    let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "    if [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; then\n",
+                "        /bin/su $login_user -c \"pdsh date 2>&1 | grep 'Connection refused' | awk {'print $6'} > ~/hosts.unreachable\"\n",
+                "    fi\n",
+                "    sleep $sleep_time\n",
+                "    let \"tot_wait_time=$tot_wait_time + $sleep_time\"\n",
+                "    if [[ \"$tot_wait_time\" -ge \"$max_wait_time\" ]]; then\n",
+                "      echo \"ERROR:  Could not reach all instances with pdsh\"\n",
+                "      echo \"Check ~/hosts.unreachable or run 'pdsh date' to find unreachable instances\"\n",
+                "      echo \"Exiting...\"\n",
+                "      return\n",
+                "    fi\n",
+                "  done\n",
+                "\n",
+                "  echo \"All instances reachable\"\n",
+                "  return\n",
+                "}\n",
+                "\n",
+                "function mount_efs {\n",
+                "  let mount_count=1\n",
+                "  if [[ \"$efs_id\" == \"\" ]]; then\n",
+                "       efs_id=$new_efs\n",
+                "  fi\n",
+                "  efs_mount_pt=\"/mnt/efs\"\n",
+                "  mkdir -p $efs_mount_pt\n",
+                "  nfs_opts=\"nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2  0  0\"\n",
+                "  echo \"${efs_id}.efs.${region}.amazonaws.com:/ $efs_mount_pt   nfs4 $nfs_opts\" >> /etc/fstab\n",
+                "  while [[ \"$mount_count\" -lt 11 ]]; do\n",
+                "    mount $efs_mount_pt\n",
+                "    mount_rc=$?\n",
+                "    if [[ \"$mount_rc\" != 0 ]]; then\n",
+                "      echo \"EFS is not available, waiting...\"\n",
+                "      sleep 60\n",
+                "      ((mount_count=$mount_count+1))\n",
+                "    else\n",
+                "      return\n",
+                "    fi\n",
+                "  done\n",
+                "  echo \"Could not mount EFS, exiting.\"\n",
+                "  return\n",
+                "}\n",
+                "\n",
+                "function inst_pkgs {\n",
+                "  echo \"${0}: Installing additional packages\"\n",
+                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc\n",
+                "}\n",
+                "\n",
+                "function fix_boot_disable_ht() {\n",
+                "\n",
+                "  echo \"${0} Updating kernel line\"\n",
+                "\n",
+                "  if [[ -x /sbin/grubby ]] ; then\n",
+                "      /sbin/grubby --update-kernel=ALL --args=maxcpus=$total_cores\n",
+                "  fi\n",
+                "\n",
+                "  if [ -e /etc/default/grub ]; then\n",
+                "\n",
+                "      if grep -q maxcpus /etc/default/grub; then\n",
+                "          sed -i \"s/maxcpus=[0-9]*/maxcpus=$total_cores/g\" /etc/default/grub\n",
+                "      else\n",
+                "          sed -i \"/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\\\"$/ maxcpus=$total_cores\\\"/\" /etc/default/grub\n",
+                "          sed -i \"/^GRUB_CMDLINE_LINUX=/ s/\\\"$/ maxcpus=$total_cores\\\"/\" /etc/default/grub\n",
+                "      fi\n",
+                "\n",
+                "      if [ -e /etc/grub2.cfg ]; then\n",
+                "          grub2-mkconfig > /etc/grub2.cfg\n",
+                "      fi\n",
+                "\n",
+                "      if which update-grub; then\n",
+                "          update-grub\n",
+                "      fi\n",
+                "  fi\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function disable_ht {\n",
+                "  echo \"${0}: disabling HT\"\n",
+                "\n",
+                "  parent_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f1 | cut -d- -f1 | tr '-' '\\n' | tr ',' '\\n'| sort -un)\n",
+                "\n",
+                "  # If there are no parents, HT is probably already disabled.\n",
+                "  if [ \"$parent_cores\" == \"\" ]; then\n",
+                "              parent_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list)\n",
+                "  fi\n",
+                "\n",
+                "  total_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f1 | cut -d- -f1 | tr '-' '\\n' | tr ',' '\\n'| sort -un | wc -l)\n",
+                "  sibling_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f2- | cut -d- -f2- | tr '-' '\\n' | tr ',' '\\n'| sort -un)\n",
+                "\n",
+                "  # Ensure enabled cores are enabled - starting at 1, cpu0 can't be changed\n",
+                "  for p in $parent_cores; do\n",
+                "      if [ $p -ne 0 ]; then\n",
+                "          echo 1 > /sys/devices/system/cpu/cpu${p}/online\n",
+                "      fi\n",
+                "  done\n",
+                "\n",
+                "  if [ \"$parent_cores\" == \"$sibling_cores\" ]; then\n",
+                "      echo \"Hyperthreading already disabled\"\n",
+                "  else\n",
+                "      # Ensure disabled threads are actually disabled\n",
+                "      for s in $sibling_cores; do\n",
+                "          echo 0 > /sys/devices/system/cpu/cpu${s}/online\n",
+                "      done\n",
+                "  fi\n",
+                "\n",
+                "  fix_boot_disable_ht\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function fix_boot_clocksource() {\n",
+                "\n",
+                "    echo \"${0} Updating kernel line with clocksource=tsc\"\n",
+                "\n",
+                "    if [[ -x /sbin/grubby ]] ; then\n",
+                "        /sbin/grubby --update-kernel=ALL --args=clocksource=tsc\n",
+                "    fi\n",
+                "\n",
+                "    if [ -e /etc/default/grub ]; then\n",
+                "\n",
+                "        if grep -q \"clocksource=tsc\" /etc/default/grub; then\n",
+                "            exit 0\n",
+                "        else\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX_DEFAULT/s/\\\"$/\\ clocksource=tsc\\\"/' /etc/default/grub\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX/s/\\\"$/\\ clocksource=tsc\\\"/' /etc/default/grub\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /etc/grub2.cfg ]; then\n",
+                "            grub2-mkconfig > /etc/grub2.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /boot/grub2/grub.cfg ]; then\n",
+                "            grub2-mkconfig -o /boot/grub2/grub.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if which update-grub; then\n",
+                "            update-grub\n",
+                "        fi\n",
+                "    fi\n",
+                "}\n",
+                "\n",
+                "function fix_boot_net_iname() {\n",
+                "\n",
+                "    echo \"${0} Updating kernel line with net.ifnames=0\"\n",
+                "\n",
+                "    if [[ -x /sbin/grubby ]] ; then\n",
+                "        /sbin/grubby --update-kernel=ALL --args=net.ifnames=0\n",
+                "    fi\n",
+                "\n",
+                "    if [ -e /etc/default/grub ]; then\n",
+                "\n",
+                "        if grep -q \"net.ifnames\" /etc/default/grub; then\n",
+                "            exit 0\n",
+                "        else\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX_DEFAULT/s/\\\"$/\\ net\\.ifnames\\=0\\\"/' /etc/default/grub\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX/s/\\\"$/\\ net\\.ifnames\\=0\\\"/' /etc/default/grub\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /etc/grub2.cfg ]; then\n",
+                "            grub2-mkconfig > /etc/grub2.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /boot/grub2/grub.cfg ]; then\n",
+                "            grub2-mkconfig -o /boot/grub2/grub.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if which update-grub; then\n",
+                "            update-grub\n",
+                "        fi\n",
+                "    fi\n",
+                "}\n",
+                "\n",
+                "function change_tsc {\n",
+                "  echo \"${0}: changing tsc\"\n",
+                "  # Switch the clock source to TSC\n",
+                "  echo \"tsc\" > /sys/devices/system/clocksource/clocksource0/current_clocksource\n",
+                "  fix_boot_clocksource\n",
+                "}\n",
+                "\n",
+                "function net_settings {\n",
+                "echo \"${0}: changing network settings\"\n",
+                "# Set TCP windows\n",
+                "cat >>/etc/sysctl.conf << EOF\n",
+                "\n",
+                "\n",
+                "## Custom network settings\n",
+                "net.core.netdev_max_backlog   = 1000000\n",
+                "\n",
+                "net.core.rmem_default = 124928\n",
+                "net.core.rmem_max     = 67108864\n",
+                "net.core.wmem_default = 124928\n",
+                "net.core.wmem_max     = 67108864\n",
+                "\n",
+                "net.ipv4.tcp_keepalive_time   = 1800\n",
+                "net.ipv4.tcp_mem      = 12184608        16246144        24369216\n",
+                "net.ipv4.tcp_rmem     = 4194304 8388608 67108864\n",
+                "net.ipv4.tcp_syn_retries      = 5\n",
+                "net.ipv4.tcp_wmem     = 4194304 8388608 67108864\n",
+                "EOF\n",
+                "\n",
+                "sysctl -p\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function set_custom_ulimts {\n",
+                "\n",
+                "echo \"${0}: setting ulimits\"\n",
+                "\n",
+                "# Set ulimits\n",
+                "cat >>/etc/security/limits.conf << EOF\n",
+                "# core file size (blocks, -c) 0\n",
+                "*           hard    core           0\n",
+                "*           soft    core           0\n",
+                "\n",
+                "# data seg size (kbytes, -d) unlimited\n",
+                "*           hard    data           unlimited\n",
+                "*           soft    data           unlimited\n",
+                "\n",
+                "# scheduling priority (-e) 0\n",
+                "*           hard    priority       0\n",
+                "*           soft    priority       0\n",
+                "\n",
+                "# file size (blocks, -f) unlimited\n",
+                "*           hard    fsize          unlimited\n",
+                "*           soft    fsize          unlimited\n",
+                "\n",
+                "# pending signals (-i) 256273\n",
+                "*           hard    sigpending     1015390\n",
+                "*           soft    sigpending     1015390\n",
+                "\n",
+                "# max locked memory (kbytes, -l) unlimited\n",
+                "*           hard    memlock        unlimited\n",
+                "*           soft    memlock        unlimited\n",
+                "\n",
+                "# open files (-n) 1024\n",
+                "*           hard    nofile         65536\n",
+                "*           soft    nofile         65536\n",
+                "\n",
+                "# POSIX message queues (bytes, -q) 819200\n",
+                "*           hard    msgqueue       819200\n",
+                "*           soft    msgqueue       819200\n",
+                "\n",
+                "# real-time priority (-r) 0\n",
+                "*           hard    rtprio         0\n",
+                "*           soft    rtprio         0\n",
+                "\n",
+                "# stack size (kbytes, -s) unlimited\n",
+                "*           hard    stack          unlimited\n",
+                "*           soft    stack          unlimited\n",
+                "\n",
+                "# cpu time (seconds, -t) unlimited\n",
+                "*           hard    cpu            unlimited\n",
+                "*           soft    cpu            unlimited\n",
+                "\n",
+                "# max user processes (-u) 1024\n",
+                "*           soft    nproc          16384\n",
+                "*           hard    nproc          16384\n",
+                "\n",
+                "# file locks (-x) unlimited\n",
+                "*           hard    locks          unlimited\n",
+                "*           soft    locks          unlimited\n",
+                "EOF\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function setup_shell {\n",
+                "echo \"${0}: shell setupt\"\n",
+                "\n",
+                "# setup shell\n",
+                "cat >>/home/$USER/.bash_profile << EOF\n",
+                "\n",
+                "set -o vi\n",
+                "export EDITOR=vi\n",
+                "\n",
+                "EOF\n",
+                "\n",
+                "}\n",
+                "\n",
+                "### Main ###\n",
+                "\n",
+                "OS=$(cat /etc/redhat-release  | awk {'print $1'})\n",
+                "\n",
+                "if [[ \"$OS\" = \"CentOS\" ]]; then\n",
+                "  USER=centos\n",
+                "else\n",
+                "  USER=ec2-user\n",
+                "fi\n",
+                "\n",
+                "\n",
+                "my_inst_file=$setup_tools_dir/my-instance-info.conf\n",
+                "source $my_inst_file\n",
+                "\n",
+                "install_pip\n",
+                "ck_for_yum_lck\n",
+                "fix_cfn_init\n",
+                "\n",
+                "if [[ \"$operating_system\" = \"rhel7\" ]]; then\n",
+                "  install_awscli\n",
+                "fi\n",
+                "\n",
+                "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
+                "yum install psmisc nfs-utils ksh -y\n",
+                "yum update aws-cfn-bootstrap -y\n",
+                "\n",
+                "inst_pkgs\n",
+                "mount_efs\n",
+                "disable_ht\n",
+                "change_tsc\n",
+                "net_settings\n",
+                "set_custom_ulimts\n",
+                "setup_shell\n",
+                "\n",
+                "CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-init$\")\n",
+                "$CFN_INIT -v --stack $stack_name --resource $launch_config --region $region\n",
+                "cfn_init_rc=$?\n",
+                "\n",
+                "if [[ \"$cfn_init_rc\" != 0 ]]; then\n",
+                "  echo \"Could not run cfn-init command\"\n",
+                "  echo \"Shutting down now\"\n",
+                "  shutdown now\n",
+                "fi\n",
+                "\n",
+                "# run environment setup and main function\n",
+                "#  includes ssh_setup\n",
+                "$setup_tools_dir/setup-main.sh $my_inst_file\n",
+                "setup_main_rc=$?\n",
+                "\n",
+                "if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                "  build_host_file\n",
+                "fi\n",
+                "\n",
+                "cfn_sig_error_code=$setup_main_rc\n",
+                "\n",
+                "CFN_SIG=$(echo -n $(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-signal$\"))   # using echo -n to remove cr\n",
+                "$CFN_SIG -e $cfn_sig_error_code --stack $stack_name --resource $asg_name --region $region\n",
+                "\n",
+                "curl http://169.254.169.254/latest/user-data > $setup_tools_dir/user-data.sh;\n",
+                "\n"
+              ]
+            ]
+          }
+        }
+      },
+      "Type": "AWS::AutoScaling::LaunchConfiguration"
+    },
+    "ASG02LaunchConfiguration": {
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "files": {
+              "/opt/aws/setup-tools/gethostinfo.py": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env python\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "import sys\n",
+                        "import boto3\n",
+                        "\n",
+                        "def print_priv_dns(instances, ec2):\n",
+                        "\n",
+                        "    for i in instances:\n",
+                        "        print(ec2.Instance(i).private_dns_name.replace('.ec2.internal', ''))\n",
+                        "\n",
+                        "def get_asg_from_stack(stack_name, client):\n",
+                        "\n",
+                        "    asg = list()\n",
+                        "\n",
+                        "    stk_response = client.describe_stack_resources(StackName=stack_name)\n",
+                        "\n",
+                        "    for resp in stk_response['StackResources']:\n",
+                        "        for resrc_type in resp:\n",
+                        "            if resrc_type == \"ResourceType\":\n",
+                        "                if resp[resrc_type] == \"AWS::AutoScaling::AutoScalingGroup\":\n",
+                        "                    asg.append(resp['PhysicalResourceId'])\n",
+                        "\n",
+                        "    return asg\n",
+                        "\n",
+                        "def get_inst_from_asg(asg, client_asg, ec2 ):\n",
+                        "\n",
+                        "    response = client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])\n",
+                        "\n",
+                        "    instances = list()\n",
+                        "    # Build instance IDs list\n",
+                        "    for r in response['AutoScalingGroups']:\n",
+                        "        for i in r['Instances']:\n",
+                        "            instances.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "\n",
+                        "    return instances\n",
+                        "\n",
+                        "\n",
+                        "def main():\n",
+                        "\n",
+                        "    region = \"",
+                        {
+                          "Ref": "AWS::Region"
+                        },
+                        "\"\n",
+                        "    stack_name = \"",
+                        {
+                          "Ref": "AWS::StackName"
+                        },
+                        "\"\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    asg_client = boto3.client('autoscaling', region_name=region)\n",
+                        "    ec2 = boto3.resource('ec2', region_name=region)\n",
+                        "    cfn_client = boto3.client('cloudformation', region_name=region)\n",
+                        "\n",
+                        "    asg_list = get_asg_from_stack(stack_name, cfn_client)\n",
+                        "\n",
+                        "    for asg in asg_list:\n",
+                        "        for i in get_inst_from_asg(asg, asg_client, ec2):\n",
+                        "            instances.append(i)\n",
+                        "\n",
+                        "    print_priv_dns(instances, ec2)\n",
+                        "\n",
+                        "\n",
+                        "\n",
+                        "if __name__ == '__main__':\n",
+                        "    try:\n",
+                        "        sys.exit(main())\n",
+                        "    except KeyboardInterrupt:\n",
+                        "        print 'Received Keyboard interrupt.'\n",
+                        "        print 'Exiting...'\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              },
+              "/opt/aws/setup-tools/setup-inst.py": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env python\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "import sys\n",
+                        "import time\n",
+                        "import boto3\n",
+                        "import logging\n",
+                        "import operator\n",
+                        "\n",
+                        "'''\n",
+                        "Description:\n",
+                        "Wait for all instances to be 'running', and then set the\n",
+                        "Elastic IP address to the instance that has been up the longest.\n",
+                        "'''\n",
+                        "\n",
+                        "progname = 'setup-inst'\n",
+                        "\n",
+                        "\n",
+                        "def set_inst_eip (eip, my_instance_id, my_inst_file, instances, client):\n",
+                        "\n",
+                        "    logger.info(\"Setting EIP\")\n",
+                        "\n",
+                        "    launch_time = dict()\n",
+                        "\n",
+                        "    i = dict()\n",
+                        "    response = client.describe_instances(InstanceIds=instances,DryRun=False)\n",
+                        "    for r in response['Reservations']:\n",
+                        "        for resp_i in (r['Instances']):\n",
+                        "            i = resp_i['InstanceId']\n",
+                        "            time_tuple = (resp_i['LaunchTime'].timetuple())\n",
+                        "            launch_time_secs = time.mktime(time_tuple)\n",
+                        "            launch_time[i] = launch_time_secs\n",
+                        "\n",
+                        "    launch_time_list = sorted(launch_time.items(), key=operator.itemgetter(1))\n",
+                        "    inst_to_alloc_eip = launch_time_list[1][0]\n",
+                        "\n",
+                        "    if inst_to_alloc_eip == my_instance_id:\n",
+                        "        response = client.associate_address(InstanceId=inst_to_alloc_eip, PublicIp=eip, DryRun=False)\n",
+                        "        f = open(my_inst_file, 'a')\n",
+                        "        f.write('eip_instance={0}\\n'.format(inst_to_alloc_eip))\n",
+                        "        f.close()\n",
+                        "        logger.info('Assigned {0} to instance {1}'.format(eip, inst_to_alloc_eip))\n",
+                        "\n",
+                        "\n",
+                        "def all_inst_running(instances, client):\n",
+                        "\n",
+                        "    logger.info(\"Checking if all instances are running\")\n",
+                        "\n",
+                        "    num_inst = len(instances)\n",
+                        "\n",
+                        "    response = client.describe_instance_status(InstanceIds=instances, IncludeAllInstances=False)\n",
+                        "\n",
+                        "    running = list()\n",
+                        "    not_running = list()\n",
+                        "\n",
+                        "    for r in response['InstanceStatuses']:\n",
+                        "        #print(r)\n",
+                        "        if (r['InstanceState']['Name']) == 'running':\n",
+                        "            running.append(r['InstanceId'])\n",
+                        "        else:\n",
+                        "            not_running.append(r['InstanceId'])\n",
+                        "\n",
+                        "    if len(running) == num_inst:\n",
+                        "        return True, len(running), running\n",
+                        "\n",
+                        "    return False, len(not_running), not_running\n",
+                        "\n",
+                        "\n",
+                        "def get_asg_from_stack(stack_name, client):\n",
+                        "\n",
+                        "    logger.info('Getting the ASG(s) from stack {}'.format(stack_name))\n",
+                        "\n",
+                        "    asg = list()\n",
+                        "\n",
+                        "    stk_response = client.describe_stack_resources(StackName=stack_name)\n",
+                        "\n",
+                        "    for resp in stk_response['StackResources']:\n",
+                        "        for resrc_type in resp:\n",
+                        "            if resrc_type == \"ResourceType\":\n",
+                        "                if resp[resrc_type] == \"AWS::AutoScaling::AutoScalingGroup\":\n",
+                        "                    asg.append(resp['PhysicalResourceId'])\n",
+                        "\n",
+                        "    return asg\n",
+                        "\n",
+                        "def ck_asg_inst_status(asg, client_asg, ec2):\n",
+                        "    \"\"\"\n",
+                        "    returns two lists:  list of in service instances, and not in service\n",
+                        "    :param asg:\n",
+                        "    :param client_asg:\n",
+                        "    :param ec2:\n",
+                        "    :return:\n",
+                        "    \"\"\"\n",
+                        "\n",
+                        "    logger.info('Checking the instance status for ASG {}'.format(asg))\n",
+                        "\n",
+                        "    response = client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg])\n",
+                        "    in_service = list()\n",
+                        "    not_in_service = list()\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    # Build instance IDs list\n",
+                        "    for r in response['AutoScalingGroups']:\n",
+                        "        for i in r['Instances']:\n",
+                        "            if ec2.Instance(i['LifecycleState']).instance_id == 'InService':\n",
+                        "                in_service.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "                instances.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "            else:\n",
+                        "                not_in_service.append(ec2.Instance(i['InstanceId']).instance_id)\n",
+                        "\n",
+                        "    return in_service, not_in_service\n",
+                        "\n",
+                        "\n",
+                        "def get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name):\n",
+                        "\n",
+                        "    logger.info('Checking the current instance status for {}'.format(' '.join(asg_list)))\n",
+                        "\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    while True:\n",
+                        "        if int(total_instances) == len(instances):\n",
+                        "            break\n",
+                        "        for asg in asg_list:\n",
+                        "            if my_asg_short_name in asg:\n",
+                        "                (in_serv, not_in_serv)  = ck_asg_inst_status(asg, asg_client, ec2)\n",
+                        "                for i in in_serv:\n",
+                        "                    if in_serv not in instances:\n",
+                        "                        instances.append(i)\n",
+                        "        time.sleep(1)\n",
+                        "\n",
+                        "    return instances\n",
+                        "\n",
+                        "\n",
+                        "def main():\n",
+                        "\n",
+                        "    logger.info('Setup the instance...')\n",
+                        "\n",
+                        "    my_instance_id = sys.argv[1]\n",
+                        "    my_inst_file = sys.argv[2]\n",
+                        "    total_instances = sys.argv[3]\n",
+                        "    my_asg_short_name = sys.argv[4]\n",
+                        "\n",
+                        "    region = \"",
+                        {
+                          "Ref": "AWS::Region"
+                        },
+                        "\"\n",
+                        "    stack_name = \"",
+                        {
+                          "Ref": "AWS::StackName"
+                        },
+                        "\"\n",
+                        "    ip_addr = \"",
+                        {
+                          "Ref": "EIPAddress"
+                        },
+                        "\"\n",
+                        "    instances = list()\n",
+                        "\n",
+                        "    asg_client = boto3.client('autoscaling', region_name=region)\n",
+                        "    ec2 = boto3.resource('ec2', region_name=region)\n",
+                        "    cfn_client = boto3.client('cloudformation', region_name=region)\n",
+                        "    stk_response = cfn_client.describe_stacks(StackName=stack_name)\n",
+                        "    client_ec2 = boto3.client('ec2', region_name=region)\n",
+                        "\n",
+                        "    asg_list = get_asg_from_stack(stack_name, cfn_client)\n",
+                        "\n",
+                        "    instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)\n",
+                        "\n",
+                        "    all_running_status = False\n",
+                        "    inst_count = 0\n",
+                        "\n",
+                        "    while not all_running_status:\n",
+                        "        (all_running_status, inst_count, inst_status_list) = all_inst_running(instances, client_ec2)\n",
+                        "        if not all_running_status:\n",
+                        "            logger.info('Waiting for all instances to be running')\n",
+                        "            logger.info('Instances not running {0}'.format(', '.join(inst_status_list)))\n",
+                        "            time.sleep(10)\n",
+                        "            # update instances\n",
+                        "            o_instances = instances\n",
+                        "            instances = get_current_instances_from_asg(asg_client, ec2, total_instances, asg_list, my_asg_short_name)\n",
+                        "            if instances != o_instances:\n",
+                        "                logger.info('Some instances that were running are not now')\n",
+                        "                for down_i in o_instances:\n",
+                        "                    if down_i not in instances:\n",
+                        "                        logger.info('Instance is now not running: {0}'.format(down_i))\n",
+                        "\n",
+                        "    logger.info(\"All {0} instances running in {1}\".format(all_inst_running(instances, client_ec2), my_asg_short_name))\n",
+                        "\n",
+                        "    time.sleep(5)\n",
+                        "\n",
+                        "    # only set the EIP to the first Auto Scaling Group\n",
+                        "    if my_asg_short_name == \"AutoScalingGroup01\":\n",
+                        "        set_inst_eip(ip_addr, my_instance_id, my_inst_file, instances, client_ec2)\n",
+                        "\n",
+                        "\n",
+                        "if __name__ == \"__main__\":\n",
+                        "\n",
+                        "    log_file = \"/var/log/{0}.log\".format(progname)\n",
+                        "\n",
+                        "    logging.basicConfig(level=logging.DEBUG,\n",
+                        "                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',\n",
+                        "                        datefmt='%m-%d %H:%M',\n",
+                        "                        filename=log_file)\n",
+                        "\n",
+                        "    logger = logging.getLogger(progname)\n",
+                        "\n",
+                        "    try:\n",
+                        "        sys.exit(main())\n",
+                        "    except KeyboardInterrupt:\n",
+                        "        print '\\nReceived Keyboard interrupt.'\n",
+                        "        print 'Exiting...'\n",
+                        "    except ValueError as e:\n",
+                        "        logger.info('ERROR: {0}'.format(e))\n",
+                        "\n",
+                        "\n",
+                        "\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": "root",
+                "mode": "000700",
+                "owner": "root"
+              },
+              "/opt/aws/setup-tools/setup-main.sh": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "#!/bin/bash -x\n",
+                      "\n",
+                      "total_instances=",
+                      {
+                        "Ref": "ASG02ClusterSize"
+                      },
+                      "\n",
+                      "function ck_for_yum_lck {\n",
+                      "  if [[ -f  /var/run/yum.pid ]]; then\n",
+                      "    sleep 30\n",
+                      "  fi\n",
+                      "  killall -9 yum\n",
+                      "}\n",
+                      "\n",
+                      "if [[ $1 ]]; then\n",
+                      "  my_inst_file=$1\n",
+                      "else\n",
+                      "  my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
+                      "fi\n",
+                      "\n",
+                      "echo my_asg=AutoScalingGroup02 >> $my_inst_file\n",
+                      "\n",
+                      "source $my_inst_file\n",
+                      "\n",
+                      "ck_for_yum_lck\n",
+                      "yum install -y aws-cfn-bootstrap\n",
+                      "yum install --enablerepo=epel pdsh -y\n",
+                      "pip install awscli boto3\n",
+                      "\n",
+                      "/opt/aws/setup-tools/setup-inst.py $my_instance_id $my_inst_file $total_instances AutoScalingGroup02\n",
+                      "/opt/aws/setup-tools/setup-ssh.sh $my_inst_file\n",
+                      "\n",
+                      "source $my_inst_file\n",
+                      "\n",
+                      "if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                      "  ln -s /opt/aws/setup-tools/updatehostinfo.sh /usr/local/bin/updatehostinfo\n",
+                      "  ln -s /opt/aws/setup-tools/gethostinfo.py /usr/local/bin/gethostinfo\n",
+                      "  /bin/su $login_user -c \"/opt/aws/setup-tools/updatehostinfo.sh /opt/aws/setup-tools/my-instance-info.conf\"\n",
+                      "  /bin/su $login_user -c \"echo >> ~/.bash_profile; echo export WCOLL=$home_dir/hosts.all >> ~/.bash_profile\"\n",
+                      "fi\n",
+                      "\n",
+                      "exit 0\n",
+                      "\n"
+                    ]
+                  ]
+                },
+                "encoding": "plain",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              },
+              "/opt/aws/setup-tools/setup-ssh.sh": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env bash\n",
+                        "\n",
+                        "set -x\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "\n",
+                        "function setup_ssh {\n",
+                        "\n",
+                        "  # EFS mount check is already in setup-main\n",
+                        "\n",
+                        "  ssh_key_dir=/mnt/efs/${stack_name}\n",
+                        "  ssh_key_file=${ssh_key_dir}/id_rsa\n",
+                        "\n",
+                        "  if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                        "    echo \"On the EIP instance, creating key $ssh_key_file\"\n",
+                        "\n",
+                        "    # make key dir\n",
+                        "    mkdir -p $ssh_key_dir\n",
+                        "    mkdir_rc=$?\n",
+                        "    if [[ \"$mkdir_rc\" != 0 ]]; then\n",
+                        "      echo \"Could not create $ssh_key_dir\"\n",
+                        "      return\n",
+                        "    fi\n",
+                        "\n",
+                        "    # make keys\n",
+                        "    ssh-keygen -b 2048 -t rsa -f $ssh_key_file -q -N ''\n",
+                        "    ssh_rc=$?\n",
+                        "    if [[ \"$ssh_rc\" != 0 ]]; then\n",
+                        "      echo \"Could not generate ssy key\"\n",
+                        "      return\n",
+                        "    fi\n",
+                        "\n",
+                        "  fi\n",
+                        "\n",
+                        "  echo \"Copying ssh keys to ${home_dir}/.ssh\"\n",
+                        "\n",
+                        "  let ssh_count=1\n",
+                        "  let ssh_rc=0\n",
+                        "\n",
+                        "  while [[ \"$ssh_count\" -lt 11 ]]; do\n",
+                        "    if [[ -e \"${ssh_key_dir}/id_rsa\" ]]; then\n",
+                        "      cp ${ssh_key_dir}/id_rsa $home_dir/.ssh/id_rsa\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      cp ${ssh_key_dir}/id_rsa.pub $home_dir/.ssh/id_rsa.pub\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      cat $home_dir/.ssh/id_rsa.pub >> $home_dir/.ssh/authorized_keys\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      chown ${login_user}:${login_user} $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa $home_dir/.ssh/authorized_keys\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      chmod 600 $home_dir/.ssh/id_rsa.pub $home_dir/.ssh/id_rsa\n",
+                        "      ((ssh_rc=$ssh_rc+$?))\n",
+                        "\n",
+                        "      if [[ \"$ssh_rc\" -gt 0 ]]; then\n",
+                        "        echo \"Problem when copying ssh key files\"\n",
+                        "        return\n",
+                        "      fi\n",
+                        "      echo \"Successfully setup ssh keys in ${home_dir}/.ssh\"\n",
+                        "      return\n",
+                        "    else\n",
+                        "      echo \"Can't see ssh key yet.  Waiting...\"\n",
+                        "      sleep 60\n",
+                        "      if [[ \"$ssh_count\" -eq 11 ]]; then\n",
+                        "        echo \"Could not copy ssh key files\"\n",
+                        "        return\n",
+                        "      fi\n",
+                        "    fi\n",
+                        "    ((ssh_count=$ssh_count+1))\n",
+                        "  done\n",
+                        "  return\n",
+                        "}\n",
+                        "\n",
+                        "function enable_root_ssh {\n",
+                        "\n",
+                        "  echo \"${0}: setting up root ssh\"\n",
+                        "\n",
+                        "  cp /home/$login_user/.ssh/id_rsa /root/.ssh/\n",
+                        "  cp /home/$login_user/.ssh/id_rsa.pub /root/.ssh/\n",
+                        "  cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys\n",
+                        "  sed -i.bak 's/PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  sed -i.bak2 's/#PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config\n",
+                        "  service sshd restart\n",
+                        "\n",
+                        "}\n",
+                        "\n",
+                        "my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
+                        "\n",
+                        "if [[ $1 ]]; then\n",
+                        "  my_inst_file=$1\n",
+                        "fi\n",
+                        "\n",
+                        "if [[ ! -e \"$my_inst_file\" ]]; then\n",
+                        "  echo \"$my_inst_file does not exist.  Exiting...\"\n",
+                        "  exit 1\n",
+                        "fi\n",
+                        "\n",
+                        "source $my_inst_file\n",
+                        "setup_ssh\n",
+                        "enable_root_ssh\n",
+                        "\n",
+                        "exit 0\n"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": "root",
+                "mode": "000700",
+                "owner": "root"
+              },
+              "/opt/aws/setup-tools/updatehostinfo.sh": {
+                "content": {
+                  "Fn::Base64": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "#!/usr/bin/env bash\n",
+                        "\n",
+                        "set -x\n",
+                        "\n",
+                        "#\n",
+                        "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                        "#\n",
+                        "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                        "# except in compliance with the License. A copy of the License is located at\n",
+                        "#\n",
+                        "#     http://aws.amazon.com/apache2.0/\n",
+                        "#\n",
+                        "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                        "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                        "# License for the specific language governing permissions and limitations under the License.\n",
+                        "#\n",
+                        "\n",
+                        "if [[ $1 ]]; then\n",
+                        "  my_inst_info=$1\n",
+                        "else\n",
+                        "  my_inst_info=/opt/aws/setup-tools/my-instance-info.conf\n",
+                        "fi\n",
+                        "\n",
+                        "source $my_inst_info\n",
+                        "\n",
+                        "for h in $($setup_tools_dir/gethostinfo.py); do\n",
+                        "    ssh -o StrictHostKeyChecking=no $h date > /dev/null;\n",
+                        "done\n",
+                        "\n",
+                        "echo -n \"Creating/Updating $home_dir/hosts.all ...\"\n",
+                        "$setup_tools_dir/gethostinfo.py > $home_dir/hosts.all\n",
+                        "echo \"done\"\n",
+                        "\n",
+                        "exit 0"
+                      ]
+                    ]
+                  }
+                },
+                "encoding": "base64",
+                "group": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "mode": "000700",
+                "owner": {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "AssociatePublicIpAddress": {
+          "Ref": "UsePublicIp"
+        },
+        "IamInstanceProfile": {
+          "Ref": "RootInstanceProfile"
+        },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Ref": "OperatingSystem"
+            }
+          ]
+        },
+        "InstanceType": {
+          "Ref": "ASG02InstanceType"
+        },
+        "KeyName": {
+          "Ref": "EC2KeyName"
+        },
+        "SecurityGroups": {
+          "Fn::If": [
+            "not_existing_sg",
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              }
+            ],
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              },
+              {
+                "Ref": "ExistingSecurityGroup"
+              }
+            ]
+          ]
+        },
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -x\n",
+                "\n",
+                "##exit 0\n",
+                "\n",
+                "setup_tools_dir=/opt/aws/setup-tools\n",
+                "mkdir -p $setup_tools_dir\n",
+                "chmod 755 $setup_tools_dir\n",
+                "\n",
+                "login_user=",
+                {
+                  "Fn::FindInMap": [
+                    "OSInfo",
+                    "LoginID",
+                    {
+                      "Ref": "OperatingSystem"
+                    }
+                  ]
+                },
+                "\n",
+                "\n",
+                "if [[ $1 ]]; then\n",
+                "  my_inst_file=$1\n",
+                "else\n",
+                "  my_inst_file=/opt/aws/setup-tools/my-instance-info.conf\n",
+                "fi\n",
+                "\n",
+                "source $my_inst_file\n",
+                "\n",
+                "home_dir=/home/$login_user\n",
+                "if [[ \"$login_user\" = \"\" ]]; then\n",
+                "  login_user=\"root\"\n",
+                "  home_dir=\"/root\"\n",
+                "fi\n",
+                "echo DATE=$(date \"+%Y%m%d.%M%S\") >> $my_inst_file\n",
+                "echo login_user=$login_user >> $my_inst_file\n",
+                "echo setup_tools_dir=$setup_tools_dir >> $my_inst_file\n",
+                "echo my_inst_file=$my_inst_file >> $my_inst_file\n",
+                "echo my_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id) >> $my_inst_file\n",
+                "echo operating_system=",
+                {
+                  "Ref": "OperatingSystem"
+                },
+                " >> $my_inst_file\n",
+                "echo home_dir=$home_dir >> $my_inst_file\n",
+                "echo gethostinfo_filename=$setup_tools_dir/gethostinfo.py >> $my_inst_file\n",
+                "echo region=",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " >> $my_inst_file\n",
+                "echo stack_name=",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                " >> $my_inst_file\n",
+                "echo eip_address=",
+                {
+                  "Ref": "EIPAddress"
+                },
+                " >> $my_inst_file\n",
+                "echo efs_id=",
+                {
+                  "Ref": "EfsId"
+                },
+                " >> $my_inst_file\n",
+                "echo new_efs=",
+                {
+                  "Ref": "NewEfsFileSystem"
+                },
+                " >> $my_inst_file\n",
+                "\n",
+                "source $my_inst_file\n",
+                "\n",
+                "echo /usr/local/lib/python2.7/site-packages/ >> /usr/lib/python2.7/site-packages/usrlocal.pth\n",
+                "\n",
+                "asg_name=\"AutoScalingGroup02\"\n",
+                "init_cluster_size=\"",
+                {
+                  "Ref": "ASG02ClusterSize"
+                },
+                "\"\n",
+                "launch_config=\"ASG02LaunchConfiguration\"\n",
+                "\n",
+                "#@IgnoreInspection BashAddShebang\n",
+                "\n",
+                "#\n",
+                "# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.\n",
+                "#\n",
+                "# Licensed under the Apache License, Version 2.0 (the \"License\"). You may not use this file\n",
+                "# except in compliance with the License. A copy of the License is located at\n",
+                "#\n",
+                "#     http://aws.amazon.com/apache2.0/\n",
+                "#\n",
+                "# or in the \"license\" file accompanying this file. This file is distributed on an \"AS IS\"\n",
+                "# BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n",
+                "# License for the specific language governing permissions and limitations under the License.\n",
+                "#\n",
+                "\n",
+                "function ck_for_yum_lck {\n",
+                "  if [[ -f  /var/run/yum.pid ]]; then\n",
+                "    sleep 30\n",
+                "  fi\n",
+                "  /usr/bin/killall -9 yum\n",
+                "}\n",
+                "\n",
+                "function fix_cfn_init {\n",
+                "  # Setup CFN init and signal\n",
+                "  CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-init$\")\n",
+                "  test_cfn_init_rc=$?\n",
+                "\n",
+                "  if [[ \"$test_cfn_init_rc\" != 0 ]]; then\n",
+                "      if [[ \"$operating_system\" = \"rhel7\" ]]; then\n",
+                "          yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                "      else\n",
+                "          yum install epel-release -y\n",
+                "      fi\n",
+                "\n",
+                "      while :\n",
+                "      do\n",
+                "        rpm -q pystache python-daemon python-setuptools\n",
+                "        rpm_ck=$?\n",
+                "\n",
+                "        if [[ \"$rpm_ck\" != 0 ]]; then\n",
+                "          yum install pystache python-daemon python-setuptools -y\n",
+                "          curl -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm\n",
+                "          rpm -ivh aws-cfn-bootstrap-latest.amzn1.noarch.rpm\n",
+                "          export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/site-package\n",
+                "        else\n",
+                "          return\n",
+                "        fi\n",
+                "        sleep 1\n",
+                "      done\n",
+                "  fi\n",
+                "}\n",
+                "\n",
+                "function install_awscli {\n",
+                "\n",
+                "  while :\n",
+                "  do\n",
+                "    aws --version\n",
+                "    aws_ck=$?\n",
+                "\n",
+                "    if [[ \"$aws_ck\" != 0 ]]; then\n",
+                "      pip install awscli\n",
+                "    else\n",
+                "      return\n",
+                "    fi\n",
+                "    sleep 1\n",
+                "  done\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function install_pip {\n",
+                "\n",
+                "  while :\n",
+                "  do\n",
+                "    pip -V\n",
+                "    pip_ck=$?\n",
+                "\n",
+                "    if [[ \"$pip_ck\" != 0 ]]; then\n",
+                "      pushd /tmp\n",
+                "      curl -O https://bootstrap.pypa.io/get-pip.py\n",
+                "      python get-pip.py\n",
+                "      popd\n",
+                "    else\n",
+                "      return\n",
+                "    fi\n",
+                "    sleep 1\n",
+                "  done\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function build_host_file {\n",
+                "\n",
+                "  let max_wait_time=900  # in seconds\n",
+                "  let tot_wait_time=0\n",
+                "  let sleep_time=5\n",
+                "\n",
+                "  export WCOLL=$home_dir/hosts.all\n",
+                "  let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "  while [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; do\n",
+                "    echo \"Updating host info ...\"\n",
+                "    /bin/su $login_user -c $setup_tools_dir/updatehostinfo.sh\n",
+                "    echo \"Running 'pdsh date' to determine reachable instance count\"\n",
+                "    let total_instances=$(/bin/su $login_user -c \"pdsh date 2>/dev/null | wc -l\")\n",
+                "    if [[ \"$total_instances\" -lt \"$init_cluster_size\" ]]; then\n",
+                "        /bin/su $login_user -c \"pdsh date 2>&1 | grep 'Connection refused' | awk {'print $6'} > ~/hosts.unreachable\"\n",
+                "    fi\n",
+                "    sleep $sleep_time\n",
+                "    let \"tot_wait_time=$tot_wait_time + $sleep_time\"\n",
+                "    if [[ \"$tot_wait_time\" -ge \"$max_wait_time\" ]]; then\n",
+                "      echo \"ERROR:  Could not reach all instances with pdsh\"\n",
+                "      echo \"Check ~/hosts.unreachable or run 'pdsh date' to find unreachable instances\"\n",
+                "      echo \"Exiting...\"\n",
+                "      return\n",
+                "    fi\n",
+                "  done\n",
+                "\n",
+                "  echo \"All instances reachable\"\n",
+                "  return\n",
+                "}\n",
+                "\n",
+                "function mount_efs {\n",
+                "  let mount_count=1\n",
+                "  if [[ \"$efs_id\" == \"\" ]]; then\n",
+                "       efs_id=$new_efs\n",
+                "  fi\n",
+                "  efs_mount_pt=\"/mnt/efs\"\n",
+                "  mkdir -p $efs_mount_pt\n",
+                "  nfs_opts=\"nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2  0  0\"\n",
+                "  echo \"${efs_id}.efs.${region}.amazonaws.com:/ $efs_mount_pt   nfs4 $nfs_opts\" >> /etc/fstab\n",
+                "  while [[ \"$mount_count\" -lt 11 ]]; do\n",
+                "    mount $efs_mount_pt\n",
+                "    mount_rc=$?\n",
+                "    if [[ \"$mount_rc\" != 0 ]]; then\n",
+                "      echo \"EFS is not available, waiting...\"\n",
+                "      sleep 60\n",
+                "      ((mount_count=$mount_count+1))\n",
+                "    else\n",
+                "      return\n",
+                "    fi\n",
+                "  done\n",
+                "  echo \"Could not mount EFS, exiting.\"\n",
+                "  return\n",
+                "}\n",
+                "\n",
+                "function inst_pkgs {\n",
+                "  echo \"${0}: Installing additional packages\"\n",
+                "  yum -y install vim screen dstat htop strace perf pdsh openmpi openmpi-devel psmisc\n",
+                "}\n",
+                "\n",
+                "function fix_boot_disable_ht() {\n",
+                "\n",
+                "  echo \"${0} Updating kernel line\"\n",
+                "\n",
+                "  if [[ -x /sbin/grubby ]] ; then\n",
+                "      /sbin/grubby --update-kernel=ALL --args=maxcpus=$total_cores\n",
+                "  fi\n",
+                "\n",
+                "  if [ -e /etc/default/grub ]; then\n",
+                "\n",
+                "      if grep -q maxcpus /etc/default/grub; then\n",
+                "          sed -i \"s/maxcpus=[0-9]*/maxcpus=$total_cores/g\" /etc/default/grub\n",
+                "      else\n",
+                "          sed -i \"/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\\\"$/ maxcpus=$total_cores\\\"/\" /etc/default/grub\n",
+                "          sed -i \"/^GRUB_CMDLINE_LINUX=/ s/\\\"$/ maxcpus=$total_cores\\\"/\" /etc/default/grub\n",
+                "      fi\n",
+                "\n",
+                "      if [ -e /etc/grub2.cfg ]; then\n",
+                "          grub2-mkconfig > /etc/grub2.cfg\n",
+                "      fi\n",
+                "\n",
+                "      if which update-grub; then\n",
+                "          update-grub\n",
+                "      fi\n",
+                "  fi\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function disable_ht {\n",
+                "  echo \"${0}: disabling HT\"\n",
+                "\n",
+                "  parent_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f1 | cut -d- -f1 | tr '-' '\\n' | tr ',' '\\n'| sort -un)\n",
+                "\n",
+                "  # If there are no parents, HT is probably already disabled.\n",
+                "  if [ \"$parent_cores\" == \"\" ]; then\n",
+                "              parent_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list)\n",
+                "  fi\n",
+                "\n",
+                "  total_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f1 | cut -d- -f1 | tr '-' '\\n' | tr ',' '\\n'| sort -un | wc -l)\n",
+                "  sibling_cores=$(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | cut -d, -f2- | cut -d- -f2- | tr '-' '\\n' | tr ',' '\\n'| sort -un)\n",
+                "\n",
+                "  # Ensure enabled cores are enabled - starting at 1, cpu0 can't be changed\n",
+                "  for p in $parent_cores; do\n",
+                "      if [ $p -ne 0 ]; then\n",
+                "          echo 1 > /sys/devices/system/cpu/cpu${p}/online\n",
+                "      fi\n",
+                "  done\n",
+                "\n",
+                "  if [ \"$parent_cores\" == \"$sibling_cores\" ]; then\n",
+                "      echo \"Hyperthreading already disabled\"\n",
+                "  else\n",
+                "      # Ensure disabled threads are actually disabled\n",
+                "      for s in $sibling_cores; do\n",
+                "          echo 0 > /sys/devices/system/cpu/cpu${s}/online\n",
+                "      done\n",
+                "  fi\n",
+                "\n",
+                "  fix_boot_disable_ht\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function fix_boot_clocksource() {\n",
+                "\n",
+                "    echo \"${0} Updating kernel line with clocksource=tsc\"\n",
+                "\n",
+                "    if [[ -x /sbin/grubby ]] ; then\n",
+                "        /sbin/grubby --update-kernel=ALL --args=clocksource=tsc\n",
+                "    fi\n",
+                "\n",
+                "    if [ -e /etc/default/grub ]; then\n",
+                "\n",
+                "        if grep -q \"clocksource=tsc\" /etc/default/grub; then\n",
+                "            exit 0\n",
+                "        else\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX_DEFAULT/s/\\\"$/\\ clocksource=tsc\\\"/' /etc/default/grub\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX/s/\\\"$/\\ clocksource=tsc\\\"/' /etc/default/grub\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /etc/grub2.cfg ]; then\n",
+                "            grub2-mkconfig > /etc/grub2.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /boot/grub2/grub.cfg ]; then\n",
+                "            grub2-mkconfig -o /boot/grub2/grub.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if which update-grub; then\n",
+                "            update-grub\n",
+                "        fi\n",
+                "    fi\n",
+                "}\n",
+                "\n",
+                "function fix_boot_net_iname() {\n",
+                "\n",
+                "    echo \"${0} Updating kernel line with net.ifnames=0\"\n",
+                "\n",
+                "    if [[ -x /sbin/grubby ]] ; then\n",
+                "        /sbin/grubby --update-kernel=ALL --args=net.ifnames=0\n",
+                "    fi\n",
+                "\n",
+                "    if [ -e /etc/default/grub ]; then\n",
+                "\n",
+                "        if grep -q \"net.ifnames\" /etc/default/grub; then\n",
+                "            exit 0\n",
+                "        else\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX_DEFAULT/s/\\\"$/\\ net\\.ifnames\\=0\\\"/' /etc/default/grub\n",
+                "            sed -i '/^GRUB\\_CMDLINE\\_LINUX/s/\\\"$/\\ net\\.ifnames\\=0\\\"/' /etc/default/grub\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /etc/grub2.cfg ]; then\n",
+                "            grub2-mkconfig > /etc/grub2.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if [ -e /boot/grub2/grub.cfg ]; then\n",
+                "            grub2-mkconfig -o /boot/grub2/grub.cfg\n",
+                "        fi\n",
+                "\n",
+                "        if which update-grub; then\n",
+                "            update-grub\n",
+                "        fi\n",
+                "    fi\n",
+                "}\n",
+                "\n",
+                "function change_tsc {\n",
+                "  echo \"${0}: changing tsc\"\n",
+                "  # Switch the clock source to TSC\n",
+                "  echo \"tsc\" > /sys/devices/system/clocksource/clocksource0/current_clocksource\n",
+                "  fix_boot_clocksource\n",
+                "}\n",
+                "\n",
+                "function net_settings {\n",
+                "echo \"${0}: changing network settings\"\n",
+                "# Set TCP windows\n",
+                "cat >>/etc/sysctl.conf << EOF\n",
+                "\n",
+                "\n",
+                "## Custom network settings\n",
+                "net.core.netdev_max_backlog   = 1000000\n",
+                "\n",
+                "net.core.rmem_default = 124928\n",
+                "net.core.rmem_max     = 67108864\n",
+                "net.core.wmem_default = 124928\n",
+                "net.core.wmem_max     = 67108864\n",
+                "\n",
+                "net.ipv4.tcp_keepalive_time   = 1800\n",
+                "net.ipv4.tcp_mem      = 12184608        16246144        24369216\n",
+                "net.ipv4.tcp_rmem     = 4194304 8388608 67108864\n",
+                "net.ipv4.tcp_syn_retries      = 5\n",
+                "net.ipv4.tcp_wmem     = 4194304 8388608 67108864\n",
+                "EOF\n",
+                "\n",
+                "sysctl -p\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function set_custom_ulimts {\n",
+                "\n",
+                "echo \"${0}: setting ulimits\"\n",
+                "\n",
+                "# Set ulimits\n",
+                "cat >>/etc/security/limits.conf << EOF\n",
+                "# core file size (blocks, -c) 0\n",
+                "*           hard    core           0\n",
+                "*           soft    core           0\n",
+                "\n",
+                "# data seg size (kbytes, -d) unlimited\n",
+                "*           hard    data           unlimited\n",
+                "*           soft    data           unlimited\n",
+                "\n",
+                "# scheduling priority (-e) 0\n",
+                "*           hard    priority       0\n",
+                "*           soft    priority       0\n",
+                "\n",
+                "# file size (blocks, -f) unlimited\n",
+                "*           hard    fsize          unlimited\n",
+                "*           soft    fsize          unlimited\n",
+                "\n",
+                "# pending signals (-i) 256273\n",
+                "*           hard    sigpending     1015390\n",
+                "*           soft    sigpending     1015390\n",
+                "\n",
+                "# max locked memory (kbytes, -l) unlimited\n",
+                "*           hard    memlock        unlimited\n",
+                "*           soft    memlock        unlimited\n",
+                "\n",
+                "# open files (-n) 1024\n",
+                "*           hard    nofile         65536\n",
+                "*           soft    nofile         65536\n",
+                "\n",
+                "# POSIX message queues (bytes, -q) 819200\n",
+                "*           hard    msgqueue       819200\n",
+                "*           soft    msgqueue       819200\n",
+                "\n",
+                "# real-time priority (-r) 0\n",
+                "*           hard    rtprio         0\n",
+                "*           soft    rtprio         0\n",
+                "\n",
+                "# stack size (kbytes, -s) unlimited\n",
+                "*           hard    stack          unlimited\n",
+                "*           soft    stack          unlimited\n",
+                "\n",
+                "# cpu time (seconds, -t) unlimited\n",
+                "*           hard    cpu            unlimited\n",
+                "*           soft    cpu            unlimited\n",
+                "\n",
+                "# max user processes (-u) 1024\n",
+                "*           soft    nproc          16384\n",
+                "*           hard    nproc          16384\n",
+                "\n",
+                "# file locks (-x) unlimited\n",
+                "*           hard    locks          unlimited\n",
+                "*           soft    locks          unlimited\n",
+                "EOF\n",
+                "\n",
+                "}\n",
+                "\n",
+                "function setup_shell {\n",
+                "echo \"${0}: shell setupt\"\n",
+                "\n",
+                "# setup shell\n",
+                "cat >>/home/$USER/.bash_profile << EOF\n",
+                "\n",
+                "set -o vi\n",
+                "export EDITOR=vi\n",
+                "\n",
+                "EOF\n",
+                "\n",
+                "}\n",
+                "\n",
+                "### Main ###\n",
+                "\n",
+                "OS=$(cat /etc/redhat-release  | awk {'print $1'})\n",
+                "\n",
+                "if [[ \"$OS\" = \"CentOS\" ]]; then\n",
+                "  USER=centos\n",
+                "else\n",
+                "  USER=ec2-user\n",
+                "fi\n",
+                "\n",
+                "\n",
+                "my_inst_file=$setup_tools_dir/my-instance-info.conf\n",
+                "source $my_inst_file\n",
+                "\n",
+                "install_pip\n",
+                "ck_for_yum_lck\n",
+                "fix_cfn_init\n",
+                "\n",
+                "if [[ \"$operating_system\" = \"rhel7\" ]]; then\n",
+                "  install_awscli\n",
+                "fi\n",
+                "\n",
+                "yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y\n",
+                "yum install psmisc nfs-utils ksh -y\n",
+                "yum update aws-cfn-bootstrap -y\n",
+                "\n",
+                "inst_pkgs\n",
+                "mount_efs\n",
+                "disable_ht\n",
+                "change_tsc\n",
+                "net_settings\n",
+                "set_custom_ulimts\n",
+                "setup_shell\n",
+                "\n",
+                "CFN_INIT=$(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-init$\")\n",
+                "$CFN_INIT -v --stack $stack_name --resource $launch_config --region $region\n",
+                "cfn_init_rc=$?\n",
+                "\n",
+                "if [[ \"$cfn_init_rc\" != 0 ]]; then\n",
+                "  echo \"Could not run cfn-init command\"\n",
+                "  echo \"Shutting down now\"\n",
+                "  shutdown now\n",
+                "fi\n",
+                "\n",
+                "# run environment setup and main function\n",
+                "#  includes ssh_setup\n",
+                "$setup_tools_dir/setup-main.sh $my_inst_file\n",
+                "setup_main_rc=$?\n",
+                "\n",
+                "if [[ \"$my_instance_id\" = \"$eip_instance\" ]]; then\n",
+                "  build_host_file\n",
+                "fi\n",
+                "\n",
+                "cfn_sig_error_code=$setup_main_rc\n",
+                "\n",
+                "CFN_SIG=$(echo -n $(rpm -ql aws-cfn-bootstrap | grep \"/opt/aws/apitools/.*/bin/cfn-signal$\"))   # using echo -n to remove cr\n",
+                "$CFN_SIG -e $cfn_sig_error_code --stack $stack_name --resource $asg_name --region $region\n",
+                "\n",
+                "curl http://169.254.169.254/latest/user-data > $setup_tools_dir/user-data.sh;\n",
+                "\n"
+              ]
+            ]
+          }
+        }
+      },
+      "Type": "AWS::AutoScaling::LaunchConfiguration"
+    },
+    "AutoScalingGroup01": {
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Count": {
+            "Ref": "ASG01MinClusterSize"
+          },
+          "Timeout": "PT60M"
+        }
+      },
+      "Properties": {
+        "Cooldown": 10,
+        "DesiredCapacity": {
+          "Ref": "ASG01ClusterSize"
+        },
+        "LaunchConfigurationName": {
+          "Ref": "ASG01LaunchConfiguration"
+        },
+        "MaxSize": {
+          "Ref": "ASG01MaxClusterSize"
+        },
+        "MinSize": {
+          "Ref": "ASG01MinClusterSize"
+        },
+        "PlacementGroup": {
+          "Ref": "PlacementGroup"
+        },
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "Subnet"
+          }
+        ]
+      },
+      "Type": "AWS::AutoScaling::AutoScalingGroup"
+    },
+    "AutoScalingGroup02": {
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Count": {
+            "Ref": "ASG02MinClusterSize"
+          },
+          "Timeout": "PT60M"
+        }
+      },
+      "Properties": {
+        "Cooldown": 10,
+        "DesiredCapacity": {
+          "Ref": "ASG02ClusterSize"
+        },
+        "LaunchConfigurationName": {
+          "Ref": "ASG02LaunchConfiguration"
+        },
+        "MaxSize": {
+          "Ref": "ASG02MaxClusterSize"
+        },
+        "MinSize": {
+          "Ref": "ASG02MinClusterSize"
+        },
+        "PlacementGroup": {
+          "Ref": "PlacementGroup"
+        },
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "Subnet"
+          }
+        ]
+      },
+      "Type": "AWS::AutoScaling::AutoScalingGroup"
+    },
+    "ClusterSecuirtyGroupIngress": {
+      "Properties": {
+        "FromPort": "0",
+        "GroupId": {
+          "Ref": "ClusterSecurityGroup"
+        },
+        "IpProtocol": "-1",
+        "SourceSecurityGroupId": {
+          "Ref": "ClusterSecurityGroup"
+        },
+        "ToPort": "65535"
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress"
+    },
+    "ClusterSecurityGroup": {
+      "Properties": {
+        "GroupDescription": "Cluster Secuirty group",
+        "VpcId": {
+          "Ref": "VPCId"
+        }
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
+    "EIPAddress": {
+      "Condition": "create_elastic_ip",
+      "Properties": {
+        "Domain": "vpc"
+      },
+      "Type": "AWS::EC2::EIP"
+    },
+    "NewEfsFileSystem": {
+      "Condition": "create_efs",
+      "Properties": {
+        "Encrypted": "true",
+        "FileSystemTags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          }
+        ],
+        "PerformanceMode": "generalPurpose"
+      },
+      "Type": "AWS::EFS::FileSystem"
+    },
+    "NewEfsMountTarget": {
+      "Condition": "create_efs",
+      "Properties": {
+        "FileSystemId": {
+          "Ref": "NewEfsFileSystem"
+        },
+        "SecurityGroups": {
+          "Fn::If": [
+            "not_existing_sg",
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              }
+            ],
+            [
+              {
+                "Ref": "ClusterSecurityGroup"
+              },
+              {
+                "Ref": "SshSecurityGroup"
+              },
+              {
+                "Ref": "ExistingSecurityGroup"
+              }
+            ]
+          ]
+        },
+        "SubnetId": {
+          "Ref": "Subnet"
+        }
+      },
+      "Type": "AWS::EFS::MountTarget"
+    },
+    "PlacementGroup": {
+      "Properties": {
+        "Strategy": "cluster"
+      },
+      "Type": "AWS::EC2::PlacementGroup"
+    },
+    "RootInstanceProfile": {
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "RootRole"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::InstanceProfile"
+    },
+    "RootRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sts:AssumeRole"
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "s3:GetObject"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        {
+                          "Ref": "AdditionalBucketName"
+                        },
+                        "/*"
+                      ]
+                    ]
+                  }
+                },
+                {
+                  "Action": [
+                    "s3:ListBucket"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        {
+                          "Ref": "AdditionalBucketName"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            },
+            "PolicyName": "s3bucketaccess"
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeInstanceStatus",
+                    "ec2:AssociateAddress"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*"
+                }
+              ]
+            },
+            "PolicyName": "ec2describe"
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:DescribeStackResources"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*"
+                }
+              ]
+            },
+            "PolicyName": "cfndescribe"
+          },
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "autoscaling:DescribeAutoScalingGroups"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*"
+                }
+              ]
+            },
+            "PolicyName": "asgdescribe"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "SshSecurityGroup": {
+      "Properties": {
+        "GroupDescription": "SSH Secuirty group",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "SshAccessCidr"
+            },
+            "FromPort": "22",
+            "IpProtocol": "tcp",
+            "ToPort": "22"
+          }
+        ],
+        "VpcId": {
+          "Ref": "VPCId"
+        }
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    }
+  }
+}
