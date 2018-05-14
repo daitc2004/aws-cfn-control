@@ -1,6 +1,6 @@
 ## AWS CFN Control
 
-AWS-CFN-Control provides an interface to quickly deploy and redelpy CloudFormation stacks. The `cfnctl` command provides the core functionality, with several other commands that will find AMI info, get stack status, build CloudFormation mappings, and many other features.
+AWS-CFN-Control provides an interface to quickly deploy and redeploy CloudFormation stacks. The `cfnctl` command provides the core functionality, with several other commands that will find AMI info, get stack status, build CloudFormation mappings, and many other features.
 
 ## License
 
