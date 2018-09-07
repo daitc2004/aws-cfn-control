@@ -36,21 +36,19 @@ class CfnControl:
 
         :param kwords: aws_profile, region, asg, param_file, instances
 
-            aws_profile:
-            If this is not given, then search the session, otherwise use "default"
+            aws_profile:   If this is not given, then search
+                             the session, otherwise use "default"
 
-            region:
-            If this is not given, then search the session, if it's not in the session
-             the raise error.
+            region:        If this is not given, then search the session,
+                             if it's not in the session the raise error.
 
-            asg:
-            If an ASG name is given, append the instances from the ASG to the instance list
+            asg:           If an ASG name is given, append the instances
+                             from the ASG to the instance list
 
-            param_file:
-            Location of the the parameter files for cfnctl command (~/.cfnparam)
+            param_file:    Location of the the parameter files for
+                             cfnctl command (~/.cfnparam)
 
-            instances:
-            list() of instances
+            instances:     list() of instances
 
 
         """
@@ -63,27 +61,27 @@ class CfnControl:
 
         print('Using AWS credentials profile "{0}"'.format(self.aws_profile))
 
-        session = boto3.session.Session(profile_name=self.aws_profile)
+        self.session = boto3.session.Session(profile_name=self.aws_profile)
         self.region = kwords.get('region')
 
-        if not self.region and not session.region_name:
+        if not self.region and not self.session.region_name:
             errmsg = "Must specify a region, either at the command (-r) or in your AWS CLI config"
             raise ValueError(errmsg)
 
         if not self.region:
-            self.region = session.region_name
+            self.region = self.session.region_name
 
         print("Lools like we're in {0}".format(self.region))
 
         # boto resources
-        self.s3 = session.resource('s3')
-        self.ec2 = session.resource('ec2', region_name=self.region)
+        self.s3 = self.session.resource('s3')
+        self.ec2 = self.session.resource('ec2', region_name=self.region)
 
         # boto clients
-        self.client_ec2 = session.client('ec2', region_name=self.region)
-        self.client_asg = session.client('autoscaling', region_name=self.region)
-        self.client_cfn = session.client('cloudformation', region_name=self.region)
-        self.client_s3  = session.client('s3', region_name=self.region)
+        self.client_ec2 = self.session.client('ec2', region_name=self.region)
+        self.client_asg = self.session.client('autoscaling', region_name=self.region)
+        self.client_cfn = self.session.client('cloudformation', region_name=self.region)
+        self.client_s3  = self.session.client('s3', region_name=self.region)
 
         # grab passed arguments
         self.asg = kwords.get('asg')
@@ -97,26 +95,36 @@ class CfnControl:
         except Exception as e:
             raise ValueError(e)
 
-        # stack information
+        # Stack variables
+        #
         self.stack_name = None
         self.template = None
         self.TemplateURL = None
         self.TemplateBody = None
 
+        # Set user directory and current directory
+        #
         self.my_cwd = os.path.curdir
-        self.param_file_list = list()
+        self.homedir = os.path.expanduser("~")
+
+        # Use user directory to build the cfnparam file location
+        #  current default is   ~/.cfnparm
+        #
+        self.param_file_list = None
         self.cfn_param_file_values = dict()
         self.cfn_param_file_basename = None
-        self.homedir = os.path.expanduser("~")
         self.cfn_param_base_dir = ".cfnparam"
         self.cfn_param_file_dir = os.path.join(self.homedir, self.cfn_param_base_dir)
+
+        # Define other variables
+        #
         self.vpc_id = None
         self.template_url = None
         self.template_body = None
-        self.param_file_list = None
-
-        # first API call
         self.key_pairs = list()
+
+        # First API call - grab key pairs, this will determine if we can talk to the API
+        #
         try:
             key_pairs_response = self.client_ec2.describe_key_pairs()
         except EndpointConnectionError as e:
@@ -124,9 +132,12 @@ class CfnControl:
             raise ValueError(errmsg + str(e))
         except Exception as e:
             raise ValueError(e)
+
         for pair in (key_pairs_response['KeyPairs']):
             self.key_pairs.append(pair['KeyName'])
 
+        # For some lists, we only want to print out certain keys:
+        #
         self.vpc_keys_to_print = ['Tag_Name',
                                   'IsDefault',
                                   'CidrBlock',
@@ -140,6 +151,8 @@ class CfnControl:
                                          'GroupName',
                                          ]
 
+        # If the `asg` keyword was passed, then build an instance list from the ASG
+        #
         if self.asg:
             response = self.client_asg.describe_auto_scaling_groups(AutoScalingGroupNames=[self.asg])
 

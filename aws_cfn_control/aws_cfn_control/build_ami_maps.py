@@ -119,7 +119,7 @@ def image_info(client, owners, ami_name, region):
         if response["Images"][0]["ImageId"]:
             return response
     except:
-        print "Does the AMI requested exist in {0} ? Exiting...".format(region)
+        print "Does the AMI requested exist in {0}? Not adding region {0} to list. Continuing...".format(region)
         return "NONE"
 
 
@@ -190,13 +190,13 @@ def main():
         client = boto3.client('ec2', region_name=region)
 
         response = dict()
-        ami_map[region] = dict()
 
         for arg_n, ami_id_iad in vars(args).items():
             if ami_id_iad:
                 (ami_name, owners, description, ena, sriov) = get_image_info(client_iad, ami_id_iad)
                 response[arg_n] = image_info(client, owners, ami_name, region)
                 if response[arg_n] is not "NONE":
+                    ami_map[region] = dict()
                     ami_map[region].update({arg_n: response[arg_n]["Images"][0]["ImageId"]})
 
     ami_map = { "AWSRegionAMI": ami_map }

@@ -25,7 +25,7 @@ def arg_parse():
     parser = argparse.ArgumentParser(prog=progname,
                                      description='Launch and manage CloudFormation templates from the command line')
 
-    opt_group = parser.add_argument_group()
+    opt_group = parser.add_argument_group('optional arguments')
     opt_group.add_argument('-a', dest='ls_all_stack_info', required=False, help='List more info on all stacks', action='store_true')
     opt_group.add_argument('-b', dest='bucket', required=False, help='Bucket to upload template to')
     opt_group.add_argument('-c', dest='create_stack', required=False, help="Create a stack", action='store_true')

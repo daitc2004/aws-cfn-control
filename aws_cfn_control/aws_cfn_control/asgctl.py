@@ -26,7 +26,7 @@ def arg_parse():
                                      epilog='Example:  {} <action> -a <asg_name> -r <region>'.format(progname)
                                      )
 
-    opt_group = parser.add_argument_group()
+    opt_group = parser.add_argument_group('optional arguments')
     opt_group.add_argument('-r', dest='region', required=False, help="Region name")
 
     req_group = parser.add_argument_group('required arguments')
