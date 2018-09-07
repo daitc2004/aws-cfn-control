@@ -38,7 +38,10 @@ def arg_parse():
     parser = argparse.ArgumentParser(prog='get_ami_id')
 
     req_group = parser.add_argument_group('required arguments')
-    req_group.add_argument('-i', dest='ami_id', type=str, help='AMI ID for us-east-1', required=True )
+    req_group.add_argument('-i', dest='ami_id', help='AMI ID (default region is us-east-1)', required=True )
+
+    opt_group = parser.add_argument_group('optional arguments')
+    opt_group.add_argument('-r', dest='region', required=False, help="Region name (default is us-east-1)")
 
     return parser.parse_args()
 
@@ -86,13 +89,10 @@ def get_image_info(client, ami_id):
     return resp
 
 
-def print_image_info(args, client):
+def print_image_info(ami, client):
 
     resp = dict()
-
-    for arg_n, ami_id in vars(args).items():
-        if ami_id:
-            resp = get_image_info(client, ami_id)
+    resp = get_image_info(client, ami)
 
     for k in _PROPS:
         print(" {0:<20}:  {1:<30}".format(k, resp[k]))
@@ -102,10 +102,15 @@ def main():
     rc = 0
 
     args = arg_parse()
+    region = args.region
+    ami = args.ami_id
 
-    client_iad = boto3.client('ec2', region_name='us-east-1')
-    print("Checking region us-east-1 for AMI info...")
-    print_image_info(args, client_iad)
+    if region is "":
+        region = 'us-east-1'
+
+    client = boto3.client('ec2', region_name=region)
+    print("Checking region {} for AMI info...".format(region))
+    print_image_info(ami, client)
 
     return rc
 
