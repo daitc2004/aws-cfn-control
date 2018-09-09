@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Setup IAM role and security groups, launch instance, create/attach 8 EBS volumes, create RAID0, setup NFS server, export NFS share",
+  "Description": "Setup IAM role and security groups, launch instance, create/attach 10 EBS volumes, create RAID6, setup NFS server, export NFS share",
   "Metadata" : {
     "AWS::CloudFormation::Interface" : {
       "ParameterGroups": [
@@ -9,6 +9,7 @@
             "default": "Instance Parameters"
           },
           "Parameters": [
+            "OS",
             "VPCId",
             "Subnet",
             "UsePublicIp",
@@ -58,7 +59,7 @@
       "Properties": {
         "InstanceType"        : { "Ref" : "NFSInstanceType" },
         "SubnetId"            : { "Ref" : "Subnet" },
-        "ImageId"             : { "Fn::FindInMap" :  [ "AWSRegionAMI", { "Ref" : "AWS::Region" } , "HVM64" ] },
+        "ImageId"             : { "Fn::FindInMap" :  [ "AWSRegionAMI", { "Ref" : "AWS::Region" } , { "Ref" : "OS" } ] },
         "KeyName"             : { "Ref": "KeyName"  },
         "SecurityGroupIds"    : [ { "Ref": "NFSSecurityGroup" },
                                   { "Ref": "SSHSecurityGroup" },
@@ -550,6 +551,16 @@
       ],
       "ConstraintDescription": "Must an EC2 instance type from the list"
     },
+    "OS" : {
+      "Description" : "Operating System (centos7, rhel7)",
+      "Type" : "String",
+      "Default" : "rhel7",
+      "ConstraintDescription" : "centos7, rhel7",
+      "AllowedValues" : [
+        "centos7",
+        "rhel7"
+      ]
+    },
     "KeyName": {
       "Description": "Existing EC2 KeyPair to enable SSH access to the instance.",
       "Type": "AWS::EC2::KeyPair::KeyName"
@@ -655,44 +666,50 @@
   },
   "Mappings" : {
     "AWSRegionAMI": {
+      "ap-northeast-1": {
+        "centos7": "ami-8e8847f1"
+      },
       "ap-northeast-2": {
-        "HVM64": "ami-6447930a"
+        "centos7": "ami-bf9c36d1"
       },
       "ap-south-1": {
-        "HVM64": "ami-7c9bef13"
+        "centos7": "ami-1780a878"
       },
       "ap-southeast-1": {
-        "HVM64": "ami-2c95344f"
+        "centos7": "ami-8e0205f2"
       },
       "ap-southeast-2": {
-        "HVM64": "ami-39ac915a"
+        "centos7": "ami-d8c21dba"
       },
       "ca-central-1": {
-        "HVM64": "ami-9062d0f4"
+        "centos7": "ami-e802818c"
       },
       "eu-central-1": {
-        "HVM64": "ami-e4c63e8b"
+        "centos7": "ami-dd3c0f36"
       },
       "eu-west-1": {
-        "HVM64": "ami-02ace471"
+        "centos7": "ami-3548444c"
       },
       "eu-west-2": {
-        "HVM64": "ami-9c363cf8"
+        "centos7": "ami-00846a67"
+      },
+      "eu-west-3": {
+        "centos7": "ami-262e9f5b"
       },
       "sa-east-1": {
-        "HVM64": "ami-7de77b11"
+        "centos7": "ami-cb5803a7"
       },
       "us-east-1": {
-        "HVM64": "ami-b63769a1"
+        "centos7": "ami-9887c6e7"
       },
       "us-east-2": {
-        "HVM64": "ami-0932686c"
+        "centos7": "ami-9c0638f9"
       },
       "us-west-1": {
-        "HVM64": "ami-2cade64c"
+        "centos7": "ami-4826c22b"
       },
       "us-west-2": {
-        "HVM64": "ami-6f68cf0f"
+        "centos7": "ami-3ecc8f46"
       }
     }
   },

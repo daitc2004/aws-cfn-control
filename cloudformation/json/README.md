@@ -1,9 +1,9 @@
-## CloudFormation Templates
+# CloudFormation Templates
 
 
-### NFS Templates
+## NFS Templates
 
-####  NFS Server using EBS on ZFS
+###  NFS Server using EBS on ZFS
 
 Description | JSON File | Launch
 ----------- | --------- | ------
