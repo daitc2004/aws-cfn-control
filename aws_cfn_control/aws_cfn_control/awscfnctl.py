@@ -1065,9 +1065,27 @@ class CfnControl:
         value_already_set = list()
         cfn_param_file_to_write = dict()
         cfn_param_file = self.get_cfn_param_file(template + "." + stack_name)
+        cfn_param_file_default = self.get_cfn_param_file(template + ".default")
         found_required_val = False
 
-        if not os.path.isfile(cfn_param_file):
+        if os.path.isfile(cfn_param_file_default):
+            cli_val = raw_input("Default parameters file {0} exists, use this file [Y/n]:  ".format(cfn_param_file_default))
+
+            if not cli_val:
+                cli_val = 'y'
+
+            if cli_val.lower().startswith("n"):
+                try:
+                    os.remove(cfn_param_file)
+                    self.build_cfn_param(stack_name, template, verbose=verbose)
+                    return
+                except Exception as e:
+                    raise ValueError(e)
+            else:
+                # Using the already build .default params file, nothing left to do here
+                return cfn_param_file_default
+
+        elif not os.path.isfile(cfn_param_file):
             # create parameters file and dir
             print("Creating parameters file {0}".format(cfn_param_file))
             if not os.path.isdir(self.cfn_param_file_dir):
@@ -1077,6 +1095,7 @@ class CfnControl:
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         raise
+
         elif os.path.isfile(cfn_param_file):
             cli_val = raw_input("Parameters file {0} already exists, use this file [y/N]:  ".format(cfn_param_file))
 
