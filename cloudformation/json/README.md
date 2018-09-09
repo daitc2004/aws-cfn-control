@@ -1,7 +1,10 @@
 # CloudFormation Templates
 
+Miscellaneous CloudFormation templates with a description and launch link.  Unless otherwise noted, they should work in all regions.
 
 ## NFS Templates
+
+This is a set of CloudFormation templates that will bring up an instance, configure an NFS server, and export it out to the chosen CIDR block with the given NFS options.  There are several options and features to each of the templates, and they should be used as a starting point to configure you own templates.
 
 ###  NFS Server using EBS on ZFS
 
