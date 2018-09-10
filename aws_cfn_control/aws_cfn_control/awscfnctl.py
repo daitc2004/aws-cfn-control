@@ -567,7 +567,7 @@ class CfnControl:
             else:
                 raise ValueError(e)
 
-        print("Trying to launch {}".format(stack_name))
+        print("Attempting to launch {}".format(stack_name))
 
         try:
 
