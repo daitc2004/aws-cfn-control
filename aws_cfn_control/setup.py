@@ -27,6 +27,7 @@ from aws_cfn_control import __version__
 def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
+
 console_scripts = ['cfnctl = aws_cfn_control.cfnctl:main']
 
 setup(
