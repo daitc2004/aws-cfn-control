@@ -16,7 +16,7 @@
 import os
 import sys
 import argparse
-from aws_cfn_control import CfnControl
+from awscfnctl import CfnControl
 
 progname = 'cfnctl'
 

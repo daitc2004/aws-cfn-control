@@ -16,21 +16,36 @@
 import sys
 import boto3
 import argparse
-from aws_cfn_control import CfnControl
+from awscfnctl import CfnControl
 
-progname = 'get_inst_from_asg'
+progname = 'get_asg_from_stack'
 
 def arg_parse():
 
-    parser = argparse.ArgumentParser(prog=progname, description='List instances in an ASG')
+    parser = argparse.ArgumentParser(prog=progname, description='Launch a stack, with a config file')
 
     opt_group = parser.add_argument_group()
     opt_group.add_argument('-r', dest='region', required=False, help="Region name")
 
     req_group = parser.add_argument_group('required arguments')
-    req_group.add_argument('-a', dest='asg_name', required=True)
+    req_group.add_argument('-s', dest='stack_name', required=True)
 
     return parser.parse_args()
+
+
+def get_asg_from_stack(stack_name, client):
+
+    asg = list()
+
+    stk_response = client.describe_stack_resources(StackName=stack_name)
+
+    for resp in stk_response['StackResources']:
+        for resrc_type in resp:
+            if resrc_type == "ResourceType":
+                if resp[resrc_type] == "AWS::AutoScaling::AutoScalingGroup":
+                    asg.append(resp['PhysicalResourceId'])
+
+    return asg
 
 
 def main():
@@ -40,16 +55,14 @@ def main():
     args = arg_parse()
 
     region = args.region
-    asg = args.asg_name
+    stack = args.stack_name
 
-    cfn_client = CfnControl(region=region)
+    cfn_client = boto3.client('cloudformation', region_name=region)
 
-    instances = cfn_client.get_inst_from_asg(asg)
+    asg = get_asg_from_stack(stack, cfn_client)
 
-    for i in instances:
-        print(' {}'.format(i))
-
-    asg_status = cfn_client.ck_asg_inst_status(asg)
+    for a in asg:
+        print(' {}'.format(a))
 
     return rc
 
@@ -59,4 +72,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print '\nReceived Keyboard interrupt.'
         print 'Exiting...'
-

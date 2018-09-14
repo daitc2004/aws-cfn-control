@@ -16,7 +16,7 @@
 import sys
 import time
 import argparse
-from aws_cfn_control import CfnControl
+from awscfnctl import CfnControl
 
 progname = 'getstackinfo'
 

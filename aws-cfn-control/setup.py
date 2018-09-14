@@ -21,29 +21,33 @@ aws-cfn-control
 
 import os
 from setuptools import setup, find_packages
-from aws_cfn_control import __version__
 
 
 def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
 
-console_scripts = ['cfnctl = aws_cfn_control.cfnctl:main']
+_version = "0.0.4"
+
+console_scripts = [ 'cfnctl = awscfnctl.cfnctl:main',
+                    'getamiinfo = awscfnctl.getamiinfo:main',
+                   ]
 
 setup(
-    name='aws_cfn_control',
-    version=__version__,
+    name='aws-cfn-control',
+    version=_version,
     url='https://github.com/awslabs/aws-cfn-control',
     license="Apache License 2.0",
     author='Mark Duffield',
     author_email='duff@amazon.com',
     description='Command line launch and management tool for AWS CloudFormation',
     long_description=open_file("README.md").read(),
-    py_modules=['aws_cfn_control'],
     zip_safe=False,
     include_package_data=True,
-    install_requires=['boto3>=1.4.7', ],
-    packages=["aws_cfn_control"],
+    install_requires=[
+        'boto3>=1.4.7',
+    ],
+    packages=find_packages(),
     keywords='aws cfn control cloudformation stack',
     entry_points=dict(console_scripts=console_scripts),
     classifiers=[

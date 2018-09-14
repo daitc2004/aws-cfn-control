@@ -15,7 +15,7 @@
 
 import sys
 import argparse
-from aws_cfn_control import CfnControl
+from awscfnctl import CfnControl
 
 progname = 'asgctl'
 
@@ -33,7 +33,7 @@ def arg_parse():
     req_group.add_argument('action', help='Action to take: '
                                           'status, enter-stby, exit-stby, stop, start (stop will enter standby first, '
                                           'and start will exit standby after start is complete')
-    req_group.add_argument('-a', dest='asg', required="True")
+    req_group.add_argument('-a', dest='asg', required=True)
 
     return parser.parse_args()
 
