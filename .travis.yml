@@ -7,7 +7,7 @@ python:
 
 install:
   - pip install boto3
-  - cd aws_cfn_control
+  - cd aws-cfn-control
   - pip install -e .
   - cd -
 
