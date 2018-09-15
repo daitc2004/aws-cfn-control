@@ -28,7 +28,7 @@ def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
 
-_version = "0.0.12"
+_version = "0.0.14"
 
 console_scripts = [ 'cfnctl = awscfnctl.cfnctl:main',
                     'getamiinfo = awscfnctl.getamiinfo:main',
@@ -37,7 +37,7 @@ console_scripts = [ 'cfnctl = awscfnctl.cfnctl:main',
 
 # read the contents of your README file
 this_directory = os.path.abspath(os.path.dirname(__file__))
-with io.open(os.path.join(this_directory, '../README.md'), encoding='utf-8') as f:
+with io.open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
