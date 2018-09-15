@@ -20,6 +20,7 @@ aws-cfn-control
 # https://pypi.python.org/pypi?%3Aaction=list_classifiers
 
 import os
+import io
 from setuptools import setup, find_packages
 
 
@@ -27,11 +28,17 @@ def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
 
-_version = "0.0.4"
+_version = "0.0.12"
 
 console_scripts = [ 'cfnctl = awscfnctl.cfnctl:main',
                     'getamiinfo = awscfnctl.getamiinfo:main',
                    ]
+
+
+# read the contents of your README file
+this_directory = os.path.abspath(os.path.dirname(__file__))
+with io.open(os.path.join(this_directory, '../README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name='aws-cfn-control',
@@ -41,7 +48,8 @@ setup(
     author='Mark Duffield',
     author_email='duff@amazon.com',
     description='Command line launch and management tool for AWS CloudFormation',
-    long_description=open_file("README.md").read(),
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     zip_safe=False,
     include_package_data=True,
     install_requires=[
