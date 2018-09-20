@@ -1076,16 +1076,31 @@ class CfnControl:
 
             if cli_val.lower().startswith("n"):
                 try:
-                    os.remove(cfn_param_file)
-                    self.build_cfn_param(stack_name, template, verbose=verbose)
-                    return
+                    if os.path.isfile(cfn_param_file):
+                        cli_val = raw_input("Parameters file {0} already exists, use this file [y/N]:  ".format(cfn_param_file))
+
+                        if not cli_val:
+                            cli_val = 'n'
+
+                        if cli_val.lower().startswith("n"):
+                            try:
+                                os.remove(cfn_param_file)
+                                self.cfn_param_file = cfn_param_file
+                            except Exception as e:
+                                raise ValueError(e)
+                        else:
+                            # params file already build, nothing left to do here
+                            return cfn_param_file
+                    else:
+                        print('Stack config file does not exists, continuing...')
+                        self.cfn_param_file = cfn_param_file
                 except Exception as e:
-                    raise ValueError(e)
+                    raise(ValueError(e))
             else:
                 # Using the already build .default params file, nothing left to do here
                 return cfn_param_file_default
 
-        elif not os.path.isfile(cfn_param_file):
+        if not os.path.isfile(cfn_param_file):
             # create parameters file and dir
             print("Creating parameters file {0}".format(cfn_param_file))
             if not os.path.isdir(self.cfn_param_file_dir):
@@ -1095,7 +1110,6 @@ class CfnControl:
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         raise
-
         elif os.path.isfile(cfn_param_file):
             cli_val = raw_input("Parameters file {0} already exists, use this file [y/N]:  ".format(cfn_param_file))
 
@@ -1318,6 +1332,7 @@ class CfnControl:
 
         # Debug
         # print (sorted(cfn_param_file_to_write.items()))
+        print('writing {}'.format(self.cfn_param_file))
         with open(self.cfn_param_file, 'w') as cfn_out_file:
 
             cfn_out_file.write('[AWS-Config]\n')
