@@ -534,6 +534,7 @@ class CfnControl:
         except ClientError as e:
             pass
 
+
         if template is not None:
             # check if the template is a URL, or a local file
             if self.url_check(template):
@@ -547,6 +548,7 @@ class CfnControl:
                 if not cfn_param_file:
                     cfn_param_file = self.build_cfn_param(stack_name, template_path, verbose=verbose)
                 self.template_body = self.parse_cfn_template(template_path)
+
 
         cfn_params = self.read_cfn_param_file(cfn_param_file)
         self.cfn_param_file = cfn_param_file
@@ -587,7 +589,7 @@ class CfnControl:
                            },
                            {
                                'Key': 'cfnctl_param_file',
-                               'Value': os.path.basename(cfn_param_file)
+                               'Value': os.path.basename(self.cfn_param_file)
                            },
                     ]
                 )
@@ -608,7 +610,7 @@ class CfnControl:
                            },
                            {
                                'Key': 'cfnctl_param_file',
-                               'Value': os.path.basename(cfn_param_file)
+                               'Value': os.path.basename(self.cfn_param_file)
                            },
                     ]
                 )
@@ -1100,6 +1102,8 @@ class CfnControl:
                 # Using the already build .default params file, nothing left to do here
                 return cfn_param_file_default
 
+        self.cfn_param_file = cfn_param_file
+
         if not os.path.isfile(cfn_param_file):
             # create parameters file and dir
             print("Creating parameters file {0}".format(cfn_param_file))
@@ -1120,12 +1124,11 @@ class CfnControl:
                 try:
                     os.remove(cfn_param_file)
                     self.build_cfn_param(stack_name, template, verbose=verbose)
-                    return
                 except Exception as e:
                     raise ValueError(e)
             else:
                 # params file already build, nothing left to do here
-                return
+                return cfn_param_file
 
         if self.url_check(template):
             template_url = template
@@ -1332,7 +1335,6 @@ class CfnControl:
 
         # Debug
         # print (sorted(cfn_param_file_to_write.items()))
-        print('writing {}'.format(self.cfn_param_file))
         with open(self.cfn_param_file, 'w') as cfn_out_file:
 
             cfn_out_file.write('[AWS-Config]\n')

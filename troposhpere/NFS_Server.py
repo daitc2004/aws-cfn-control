@@ -47,10 +47,10 @@ def main():
     t = Template()
     t.add_version("2010-09-09")
     t.add_description(
-        "Launch two AutoScaling Groups, with the option to choose a different "
-        "instance type for each. A placement group is used.  An instance from the first ASG"
-        "is assigned an EIP, and pdsh is setup on the instance (that has the EIP) to manager the"
-        "entire cluster (both ASGs)."
+        "Currently supporting RHEL/CentOS 7.5.  Setup IAM role and security groups, "
+        "launch instance, create/attach 10 EBS volumes, install/fix ZFS "
+        "(http://download.zfsonlinux.org/epel/zfs-release.el7_5.noarch.rpm), "
+        "create zfs RAID6 pool, setup NFS server, export NFS share"
     )
 
     t.add_metadata({
@@ -63,6 +63,7 @@ def main():
                         "VPCId",
                         "Subnet",
                         "UsePublicIp",
+                        "CreateElasticIP",
                         "EC2KeyName",
                         "NFSInstanceType",
                         "SshAccessCidr",
@@ -77,6 +78,7 @@ def main():
                         "RAIDLevel",
                         "VolumeSize",
                         "VolumeType",
+                        "EBSVolumeType",
                         "VolumeIops"
                     ]
                 },
@@ -100,15 +102,17 @@ def main():
                 'VPCId': {'default': 'VPC ID'},
                 'Subnet': {'default': 'Subnet ID'},
                 'UsePublicIp': {'default': 'Assign a Public IP '},
+                'CreateElasticIP': {'default': 'Create and use an EIP '},
                 'EC2KeyName': {'default': 'EC2 Key Name'},
                 'NFSInstanceType': {'default': 'Instance Type'},
                 'SshAccessCidr': {'default': 'SSH Access CIDR Block'},
-                'ExistingSecurityGroup': {'default': 'Existing Security Group'},
-                'ExistingPlacementGroup': {'default': 'Existing Placement Group'},
+                'ExistingSecurityGroup': {'default': 'OPTIONAL:  Existing Security Group'},
+                'ExistingPlacementGroup': {'default': 'OPTIONAL:  Existing Placement Group'},
                 'S3BucketName': {'default': 'Optional S3 Bucket Name'},
-                'RAIDLevel': {'default': 'RAID Level (default is RAID0'},
+                'RAIDLevel': {'default': 'RAID Level'},
                 'VolumeSize': {'default': 'Volume size of the EBS vol'},
                 'VolumeType': {'default': 'Volume type of the EBS vol'},
+                'EBSVolumeType': {'default': 'Volume type of the EBS vol'},
                 'VolumeIops': {'default': 'IOPS for each EBS vol (only for io1)'},
                 'ZfsPool': {'default': 'ZFS pool name'},
                 'ZfsMountPoint': {'default': 'Mount Point'},
@@ -152,7 +156,7 @@ def main():
         ConstraintDescription= "Must an EC2 instance type from the list"
     ))
 
-    VolType = t.add_parameter(Parameter(
+    VolumeType = t.add_parameter(Parameter(
         'VolumeType',
         Type="String",
         Description="Type of EBS volume",
@@ -162,6 +166,19 @@ def main():
             "InstanceStore"
         ],
         ConstraintDescription="Volume type has to EBS or InstanceStore"
+    ))
+
+    EBSVolumeType = t.add_parameter(Parameter(
+        'EBSVolumeType',
+        Description="Type of EBS volumes to create",
+        Type="String",
+        Default="io1",
+        ConstraintDescription="Must be a either: io1, gp2, st1",
+        AllowedValues= [
+            "io1",
+            "gp2",
+            "st1"
+        ]
     ))
 
     VolumelSize = t.add_parameter(Parameter(
@@ -177,20 +194,6 @@ def main():
         Default="20000",
         Description="IOPS for the EBS volume"
     ))
-
-    EBSVolType = t.add_parameter(Parameter(
-        'EBSVolType',
-        Description="Type of volumes to create",
-        Type="String",
-        Default="io1",
-        ConstraintDescription="Must be a either: io1, gp2, st1",
-        AllowedValues= [
-            "io1",
-            "gp2",
-            "st1"
-        ]
-    ))
-
 
     RAIDLevel = t.add_parameter(Parameter(
         'RAIDLevel',
@@ -236,8 +239,8 @@ def main():
 
     ExistingSecurityGroup = t.add_parameter(Parameter(
         'ExistingSecurityGroup',
-        Type="String",
-        Description="Choose an existing Security Group ID, e.g. sg-abcd1234"
+        Type="AWS::EC2::SecurityGroup::Id",
+        Description="OPTIONAL: Choose an existing Security Group ID, e.g. sg-abcd1234"
     ))
 
     UsePublicIp = t.add_parameter(Parameter(
@@ -377,15 +380,14 @@ def main():
         'NFSInstance',
         ImageId=FindInMap("AWSRegionAMI", Ref("AWS::Region"), Ref(OperatingSystem)),
         KeyName=Ref(EC2KeyName),
-        SecurityGroups=If("not_existing_sg",
-                          [Ref(NFSSecurityGroup), Ref(SshSecurityGroup)],
-                          [Ref(NFSSecurityGroup), Ref(SshSecurityGroup), Ref(ExistingSecurityGroup)]
-                          ),
         InstanceType=(Ref(NFSInstanceType)),
         NetworkInterfaces=[
             NetworkInterfaceProperty(
-                GroupSet=[
-                    Ref(NFSSecurityGroup)],
+                GroupSet=If(
+                    "not_existing_sg",
+                    [Ref(NFSSecurityGroup), Ref(SshSecurityGroup)],
+                    [Ref(NFSSecurityGroup), Ref(SshSecurityGroup), Ref(ExistingSecurityGroup)]
+                ),
                 AssociatePublicIpAddress='true',
                 DeviceIndex='0',
                 DeleteOnTermination='true',
@@ -400,7 +402,7 @@ def main():
                                            VolumeSize=(Ref(VolumelSize)),
                                            DeleteOnTermination="True",
                                            Iops=(Ref(VolumeIops)),
-                                           VolumeType=(Ref(EBSVolType))
+                                           VolumeType=(Ref(EBSVolumeType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
@@ -409,7 +411,7 @@ def main():
                                            VolumeSize=(Ref(VolumelSize)),
                                            DeleteOnTermination="True",
                                            Iops=(Ref(VolumeIops)),
-                                           VolumeType=(Ref(EBSVolType))
+                                           VolumeType=(Ref(EBSVolumeType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
@@ -418,7 +420,7 @@ def main():
                                            VolumeSize=(Ref(VolumelSize)),
                                            DeleteOnTermination="True",
                                            Iops=(Ref(VolumeIops)),
-                                           VolumeType=(Ref(EBSVolType))
+                                           VolumeType=(Ref(EBSVolumeType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
@@ -427,7 +429,7 @@ def main():
                                            VolumeSize=(Ref(VolumelSize)),
                                            DeleteOnTermination="True",
                                            Iops=(Ref(VolumeIops)),
-                                           VolumeType=(Ref(EBSVolType))
+                                           VolumeType=(Ref(EBSVolumeType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
@@ -436,7 +438,7 @@ def main():
                                            VolumeSize=(Ref(VolumelSize)),
                                            DeleteOnTermination="True",
                                            Iops=(Ref(VolumeIops)),
-                                           VolumeType=(Ref(EBSVolType))
+                                           VolumeType=(Ref(EBSVolumeType))
                                        )
                                    ),
                                    ec2.BlockDeviceMapping(
@@ -445,7 +447,7 @@ def main():
                                            VolumeSize=(Ref(VolumelSize)),
                                            DeleteOnTermination="True",
                                            Iops=(Ref(VolumeIops)),
-                                           VolumeType=(Ref(EBSVolType))
+                                           VolumeType=(Ref(EBSVolumeType))
                                        )
                                    ),
                                ],
@@ -525,7 +527,7 @@ def main():
 
     t.add_condition(
         "vol_type_ebs",
-        Equals(Ref(VolType), "EBS")
+        Equals(Ref(VolumeType), "EBS")
     )
 
     t.add_condition(

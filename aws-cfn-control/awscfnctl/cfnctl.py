@@ -112,7 +112,7 @@ def main():
             try:
                 if param_file:
                     param_file = param_file
-                    print("Should use {}".format(param_file))
+                    print("Parameters file specified at CLI: {}".format(param_file))
                 response = client.cr_stack(stack_name, param_file, verbose=verbose_param_file, set_rollback=rollback, template=template)
                 return
             except Exception as e:
