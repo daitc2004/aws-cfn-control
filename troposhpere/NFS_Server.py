@@ -41,7 +41,6 @@ from troposphere.efs import FileSystem, MountTarget
 
 from troposphere.policies import CreationPolicy, ResourceSignal
 
-
 def main():
 
     t = Template()
@@ -52,6 +51,31 @@ def main():
         "(http://download.zfsonlinux.org/epel/zfs-release.el7_5.noarch.rpm), "
         "create zfs RAID6 pool, setup NFS server, export NFS share"
     )
+
+
+
+    InstUserData = list()
+    InstUserData = [
+        '#!/usr/bin/env bash\n',
+        '\n',
+        'set -x\n',
+        '\n',
+        '##exit 0\n',  # use this to disable all user-data and bring up files
+        '\n',
+        'zfs_pool_name="', Ref('ZfsPool'), '"\n',
+        'zfs_mount_point="', Ref('ZfsMountPoint'), '"\n',
+        'nfs_cidr_block="', Ref('NFSCidr'), '"\n',
+        'nfs_opts="', Ref('NFSOpts'), '"\n',
+        'my_wait_handle="', Ref('NFSInstanceWaitHandle'), '"\n',
+        '\n',
+    ]
+
+    with open('_include/Tropo_build_zfs_export_nfs.sh', 'r',) as ud_file:
+        user_data_file = ud_file.readlines()
+
+    for l in user_data_file:
+        InstUserData.append(l)
+
 
     t.add_metadata({
         'AWS::CloudFormation::Interface': {
@@ -247,11 +271,11 @@ def main():
         'UsePublicIp',
         Type="String",
         Description="Should a public IP address be given to the instance",
-        Default="True",
-        ConstraintDescription="True/False",
+        Default="true",
+        ConstraintDescription="true/talse",
         AllowedValues=[
-            "True",
-            "False"
+            "true",
+            "false"
         ]
     ))
 
@@ -259,11 +283,11 @@ def main():
         'CreateElasticIP',
         Type="String",
         Description="Create an Elasic IP address, that will be assinged to an instance",
-        Default="True",
-        ConstraintDescription="True/False",
+        Default="true",
+        ConstraintDescription="true/false",
         AllowedValues=[
-            "True",
-            "False"
+            "true",
+            "false"
         ]
     ))
 
@@ -388,7 +412,7 @@ def main():
                     [Ref(NFSSecurityGroup), Ref(SshSecurityGroup)],
                     [Ref(NFSSecurityGroup), Ref(SshSecurityGroup), Ref(ExistingSecurityGroup)]
                 ),
-                AssociatePublicIpAddress='true',
+                AssociatePublicIpAddress=Ref(UsePublicIp),
                 DeviceIndex='0',
                 DeleteOnTermination='true',
                 SubnetId=Ref(Subnet))],
@@ -453,7 +477,7 @@ def main():
                                ],
                                { "Ref": "AWS::NoValue" },
                                ),
-        UserData=Base64(Join('', ['echo hello'])),
+        UserData=Base64(Join('', InstUserData)),
     ))
     # End of NFSInstance
 
@@ -545,13 +569,21 @@ def main():
         Equals(Ref(CreateElasticIP), "True")
     )
 
+    nfswaithandle = t.add_resource(WaitConditionHandle('NFSInstanceWaitHandle'))
 
+    nfswaitcondition = t.add_resource(WaitCondition(
+        "NFSInstanceWaitCondition",
+        Handle=Ref(nfswaithandle),
+        Timeout="1500",
+        DependsOn="NFSInstance"
+    ))
 
     t.add_output([
         Output(
             "ElasticIP",
             Description="Elastic IP address for the instance",
-            Value=Ref(EIPAddress)
+            Value=Ref(EIPAddress),
+            Condition="create_elastic_ip"
         )
     ])
 
